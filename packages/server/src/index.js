@@ -15,6 +15,9 @@ const uploadRoutes = require('./routes/upload');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Trust proxy (fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on Render) ─────────
+app.set('trust proxy', 1);
+
 // ── Security middleware ──────────────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }
@@ -22,10 +25,18 @@ app.use(helmet({
 
 app.use(cors({
   origin: [
-    process.env.CLIENT_URL || 'http://localhost:3000',
-    process.env.ADMIN_URL  || 'http://localhost:3001',
-  ],
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'https://unilo-client.vercel.app',
+    'https://unilo-admin.vercel.app',
+    process.env.CLIENT_URL,
+    process.env.ADMIN_URL,
+  ].filter(Boolean),
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(morgan('dev'));
@@ -34,7 +45,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── Rate limiting ────────────────────────────────────────────────────────────
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 200,
   message: { error: 'Too many requests. Please slow down.' }
 });
