@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const TYPE_LABELS = {
   self_contain: 'Self Contain',
+  shared_room: 'Shared Room',
+  boys_hostel: 'Boys Hostel',
+  girls_hostel: 'Girls Hostel',
   room_and_parlour: 'Room & Parlour',
   flat: 'Flat',
   bungalow: 'Bungalow',
@@ -11,185 +14,447 @@ const TYPE_LABELS = {
   hostel: 'Hostel',
 };
 
-export default function ListingCard({ listing }) {
+export default function ListingCard({ listing, currency = 'NGN', currencySymbol = '₦' }) {
   const navigate = useNavigate();
-  const [photoIndex, setPhotoIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState(null);
-
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [wishlisted, setWishlisted] = useState(false);
+  const [dragStart, setDragStart] = useState(null);
   const photos = listing.photos?.length > 0
-    ? listing.photos
-    : [null];
+    ? listing.photos.map(p => p.url)
+    : ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80'];
 
-  const total = photos.length;
-
-  const price = new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    maximumFractionDigits: 0,
-  }).format(listing.price);
-
-  const goNext = (e) => {
-    e.stopPropagation();
-    setPhotoIndex((i) => (i + 1) % total);
-  };
-
-  const goPrev = (e) => {
-    e.stopPropagation();
-    setPhotoIndex((i) => (i - 1 + total) % total);
-  };
-
-  const handleTouchStart = (e) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStart === null) return;
-    const diff = touchStart - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) {
-      if (diff > 0) setPhotoIndex((i) => (i + 1) % total);
-      else setPhotoIndex((i) => (i - 1 + total) % total);
+  const formatPrice = (price) => {
+    try {
+      return new Intl.NumberFormat('en-NG', {
+        style: 'currency',
+        currency: currency,
+        maximumFractionDigits: 0,
+      }).format(price);
+    } catch {
+      return `${currencySymbol}${price?.toLocaleString() || 0}`;
     }
-    setTouchStart(null);
+  };
+
+  const nextPhoto = (e) => {
+    e.stopPropagation();
+    setPhotoIdx(i => (i + 1) % photos.length);
+  };
+
+  const prevPhoto = (e) => {
+    e.stopPropagation();
+    setPhotoIdx(i => (i - 1 + photos.length) % photos.length);
+  };
+
+  const handleShare = (e) => {
+    e.stopPropagation();
+    if (navigator.share) {
+      navigator.share({
+        title: listing.title,
+        text: `Check out this room on Unilo: ${listing.title}`,
+        url: `${window.location.origin}/listing/${listing.id}`,
+      });
+    } else {
+      navigator.clipboard.writeText(`${window.location.origin}/listing/${listing.id}`);
+    }
+  };
+
+  const handleDragStart = (e) => {
+    setDragStart(e.clientX || e.touches?.[0]?.clientX);
+  };
+
+  const handleDragEnd = (e) => {
+    if (dragStart === null) return;
+    const end = e.clientX || e.changedTouches?.[0]?.clientX;
+    const diff = dragStart - end;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) setPhotoIdx(i => (i + 1) % photos.length);
+      else setPhotoIdx(i => (i - 1 + photos.length) % photos.length);
+    }
+    setDragStart(null);
   };
 
   return (
-    <motion.article
-      whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(`/listing/${listing.id}`)}
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        fontFamily: "'DM Sans', sans-serif",
-      }}
-    >
-      {/* Photo slider */}
-      <div
-        style={{ position: 'relative', height: '200px', background: '#1a1a1a', overflow: 'hidden' }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+    <>
+      <style>{`
+        .listing-card {
+          cursor: pointer;
+          background: #0d0d0d;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .listing-card:hover .card-photo {
+          transform: scale(1.03);
+        }
+
+        .photo-wrapper {
+          position: relative;
+          aspect-ratio: 4/3;
+          overflow: hidden;
+          background: #1a1a1a;
+        }
+
+        .card-photo {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.4s ease;
+          user-select: none;
+          pointer-events: none;
+        }
+
+        /* photo nav arrows */
+        .photo-arrow {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 28px;
+          height: 28px;
+          background: rgba(255,255,255,0.92);
+          border: none;
+          border-radius: 50%;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 5;
+          opacity: 0;
+          transition: opacity 0.2s;
+          color: #000;
+          font-weight: 700;
+        }
+
+        .photo-wrapper:hover .photo-arrow { opacity: 1; }
+
+        .photo-arrow.prev { left: 8px; }
+        .photo-arrow.next { right: 8px; }
+
+        /* dots */
+        .photo-dots {
+          position: absolute;
+          bottom: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          gap: 4px;
+          z-index: 5;
+        }
+
+        .photo-dot {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.5);
+          transition: all 0.2s;
+        }
+
+        .photo-dot.active {
+          background: #fff;
+          width: 12px;
+          border-radius: 3px;
+        }
+
+        /* top badges */
+        .card-top-left {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          z-index: 5;
+        }
+
+        .card-top-right {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          align-items: flex-end;
+          z-index: 5;
+        }
+
+        .badge-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 100px;
+          font-size: 10px;
+          font-weight: 700;
+          font-family: 'Outfit', sans-serif;
+          white-space: nowrap;
+        }
+
+        .badge-type {
+          background: rgba(0,0,0,0.7);
+          color: #fff;
+          backdrop-filter: blur(4px);
+        }
+
+        .badge-verified {
+          background: rgba(34,197,94,0.9);
+          color: #fff;
+        }
+
+        .badge-video {
+          background: rgba(220,38,38,0.9);
+          color: #fff;
+          cursor: pointer;
+        }
+
+        .badge-vacant {
+          background: rgba(255,107,0,0.9);
+          color: #fff;
+        }
+
+        .badge-taken {
+          background: rgba(255,255,255,0.15);
+          color: rgba(255,255,255,0.7);
+          backdrop-filter: blur(4px);
+        }
+
+        /* action icons */
+        .icon-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 14px;
+          transition: all 0.2s;
+          backdrop-filter: blur(8px);
+        }
+
+        .wishlist-btn {
+          background: rgba(0,0,0,0.4);
+          color: #fff;
+        }
+
+        .wishlist-btn.active {
+          background: rgba(255,107,0,0.9);
+          color: #fff;
+        }
+
+        .share-btn {
+          background: rgba(0,0,0,0.4);
+          color: #fff;
+        }
+
+        .like-row {
+          position: absolute;
+          bottom: 10px;
+          right: 10px;
+          z-index: 5;
+        }
+
+        .like-btn {
+          background: rgba(0,0,0,0.5);
+          color: #fff;
+          backdrop-filter: blur(8px);
+        }
+
+        .like-btn.active { color: #ff4d4d; }
+
+        /* card info */
+        .card-info {
+          padding: 10px 12px 14px;
+          background: #0d0d0d;
+        }
+
+        .card-title-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 2px;
+        }
+
+        .card-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #fff;
+          font-family: 'Outfit', sans-serif;
+          line-height: 1.3;
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          flex: 1;
+        }
+
+        .card-rating {
+          font-size: 12px;
+          color: rgba(255,255,255,0.7);
+          white-space: nowrap;
+          font-family: 'Outfit', sans-serif;
+          font-weight: 500;
+        }
+
+        .card-location {
+          font-size: 11px;
+          color: rgba(255,255,255,0.4);
+          font-family: 'Outfit', sans-serif;
+          margin-bottom: 4px;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        .card-distance {
+          font-size: 11px;
+          color: rgba(255,107,0,0.8);
+          font-family: 'Outfit', sans-serif;
+          margin-bottom: 6px;
+        }
+
+        .card-price-row {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .card-price {
+          font-size: 14px;
+          font-weight: 700;
+          color: #fff;
+          font-family: 'Outfit', sans-serif;
+        }
+
+        .card-price-period {
+          font-size: 12px;
+          color: rgba(255,255,255,0.4);
+          font-family: 'Outfit', sans-serif;
+          font-weight: 400;
+        }
+      `}</style>
+
+      <motion.article
+        className="listing-card"
+        whileTap={{ scale: 0.98 }}
+        onClick={() => navigate(`/listing/${listing.id}`)}
       >
-        {photos[photoIndex]?.url ? (
-          <motion.img
-            key={photoIndex}
-            src={photos[photoIndex].url}
-            alt={listing.title}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.25 }}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '48px' }}>🏠</span>
-          </div>
-        )}
+        {/* ── PHOTO AREA ── */}
+        <div
+          className="photo-wrapper"
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
+        >
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={photoIdx}
+              src={photos[photoIdx]}
+              alt={listing.title}
+              className="card-photo"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              draggable={false}
+            />
+          </AnimatePresence>
 
-        {/* Prev/Next buttons */}
-        {total > 1 && (
-          <>
-            <button
-              onClick={goPrev}
-              style={{
-                position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
-                background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
-                width: '28px', height: '28px', cursor: 'pointer', fontSize: '12px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              }}
-            >‹</button>
-            <button
-              onClick={goNext}
-              style={{
-                position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-                background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%',
-                width: '28px', height: '28px', cursor: 'pointer', fontSize: '12px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              }}
-            >›</button>
-          </>
-        )}
-
-        {/* Dot indicators */}
-        {total > 1 && (
-          <div style={{
-            position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-            display: 'flex', gap: '4px',
-          }}>
-            {photos.map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: i === photoIndex ? '16px' : '6px',
-                  height: '6px',
-                  borderRadius: '100px',
-                  background: i === photoIndex ? '#ff6b00' : 'rgba(255,255,255,0.5)',
-                  transition: 'all 0.2s',
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Top badges */}
-        <div style={{ position: 'absolute', top: '12px', left: '12px', display: 'flex', gap: '6px' }}>
-          <span style={{
-            background: 'rgba(10,10,10,0.75)', backdropFilter: 'blur(8px)',
-            color: '#fff', padding: '4px 8px', borderRadius: '100px', fontSize: '10px', fontWeight: 600,
-          }}>
-            {TYPE_LABELS[listing.type] || listing.type}
-          </span>
-          {listing.youtube_video_id && (
-            <span style={{
-              background: 'rgba(220,38,38,0.9)',
-              color: '#fff', padding: '4px 8px', borderRadius: '100px', fontSize: '10px', fontWeight: 600,
-            }}>▶ Tour</span>
+          {/* Prev/Next arrows (desktop hover) */}
+          {photos.length > 1 && (
+            <>
+              <button className="photo-arrow prev" onClick={prevPhoto}>‹</button>
+              <button className="photo-arrow next" onClick={nextPhoto}>›</button>
+            </>
           )}
-        </div>
 
-        {/* Vacancy badge */}
-        <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
-          <span style={{
-            background: listing.is_vacant ? 'rgba(255,107,0,0.9)' : 'rgba(255,255,255,0.15)',
-            color: listing.is_vacant ? '#fff' : 'rgba(255,255,255,0.6)',
-            padding: '4px 8px', borderRadius: '100px', fontSize: '10px', fontWeight: 600,
-          }}>
-            {listing.is_vacant ? 'Vacant' : 'Taken'}
-          </span>
-        </div>
-      </div>
+          {/* Dots */}
+          {photos.length > 1 && (
+            <div className="photo-dots">
+              {photos.map((_, i) => (
+                <div key={i} className={`photo-dot ${i === photoIdx ? 'active' : ''}`} />
+              ))}
+            </div>
+          )}
 
-      {/* Info */}
-      <div style={{ padding: '14px 16px' }}>
-        <h3 style={{
-          fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: '14px',
-          color: '#fff', margin: '0 0 4px', lineHeight: 1.3,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {listing.title}
-        </h3>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '12px', margin: '0 0 12px',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          📍 {listing.address}, {listing.city}
-        </p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800, fontSize: '16px', color: '#ff6b00' }}>
-              {price}
+          {/* Top Left badges */}
+          <div className="card-top-left">
+            <span className="badge-pill badge-type">
+              {TYPE_LABELS[listing.type] || listing.type}
             </span>
-            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginLeft: '4px' }}>
-              / {listing.price_period === 'monthly' ? 'mo' : 'yr'}
+            {listing.is_verified && (
+              <span className="badge-pill badge-verified">✓ Verified</span>
+            )}
+          </div>
+
+          {/* Top Right: wishlist + share + vacant */}
+          <div className="card-top-right">
+            <button
+              className={`icon-btn wishlist-btn ${wishlisted ? 'active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setWishlisted(w => !w); }}
+              title="Save to wishlist"
+            >
+              {wishlisted ? '♥' : '♡'}
+            </button>
+            <button
+              className="icon-btn share-btn"
+              onClick={handleShare}
+              title="Share listing"
+            >
+              ↑
+            </button>
+            <span className={`badge-pill ${listing.is_vacant ? 'badge-vacant' : 'badge-taken'}`}>
+              {listing.is_vacant ? 'Vacant' : 'Taken'}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '10px', color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>
-            <span>🛏 {listing.bedrooms}</span>
-            <span>🚿 {listing.bathrooms}</span>
+
+          {/* Bottom Right: like + video */}
+          <div className="like-row" style={{ display: 'flex', gap: 6 }}>
+            {listing.youtube_video_id && (
+              <button
+                className="icon-btn"
+                style={{ background: 'rgba(220,38,38,0.85)', color: '#fff' }}
+                onClick={(e) => { e.stopPropagation(); navigate(`/listing/${listing.id}?video=1`); }}
+                title="Watch video tour"
+              >
+                ▶
+              </button>
+            )}
+            <button
+              className={`icon-btn like-btn ${liked ? 'active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setLiked(l => !l); }}
+              title="Like"
+            >
+              {liked ? '❤️' : '🤍'}
+            </button>
           </div>
         </div>
-      </div>
-    </motion.article>
+
+        {/* ── INFO ── */}
+        <div className="card-info">
+          <div className="card-title-row">
+            <span className="card-title">{listing.title}</span>
+            {listing.rating && (
+              <span className="card-rating">★ {listing.rating}</span>
+            )}
+          </div>
+          <div className="card-location">
+            {listing.address}, {listing.city}
+          </div>
+          {listing.distance_from_school && (
+            <div className="card-distance">
+              📏 {listing.distance_from_school}m from school gate
+            </div>
+          )}
+          <div className="card-price-row">
+            <span className="card-price">{formatPrice(listing.price)}</span>
+            <span className="card-price-period">/ year</span>
+          </div>
+        </div>
+      </motion.article>
+    </>
   );
 }
