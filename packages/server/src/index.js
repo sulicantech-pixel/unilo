@@ -11,12 +11,12 @@ const listingRoutes   = require('./routes/listings');
 const adminRoutes     = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const uploadRoutes    = require('./routes/upload');
+const seedRoutes      = require('./routes/seed'); // DELETE AFTER SEEDING
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ── Trust Render's reverse proxy ─────────────────────────────────────────────
-// Must be BEFORE rate limiter — fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 app.set('trust proxy', 1);
 
 // ── Security ──────────────────────────────────────────────────────────────────
@@ -25,7 +25,6 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// Hardcoded + env fallback so it never breaks if Render env vars aren't set
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -63,7 +62,6 @@ const authLimiter = rateLimit({
   message: { error: 'Too many auth attempts. Try again later.' },
 });
 
-// More generous for analytics — high-volume fire-and-forget events
 const analyticsLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
@@ -78,6 +76,7 @@ app.use('/api/listings',                    listingRoutes);
 app.use('/api/admin',                       adminRoutes);
 app.use('/api/analytics', analyticsLimiter, analyticsRoutes);
 app.use('/api/upload',                      uploadRoutes);
+app.use('/api/seed',                        seedRoutes); // DELETE AFTER SEEDING
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
