@@ -1,4 +1,4 @@
 {
-  "buildCommand": "npm install --prefix ../.. && cd ../.. && node node_modules/vite/bin/vite.js build --config packages/client/vite.config.js --outDir packages/client/dist",
+  "buildCommand": "npm install --prefix ../.. && node ../../node_modules/vite/bin/vite.js build",
   "installCommand": "echo skip"
 }
