@@ -38,12 +38,35 @@ router.get('/', optionalAuth, async (req, res) => {
     const { count, rows } = await Listing.findAndCountAll({
       where,
       include: [
-        { model: Photo, as: 'photos', where: { is_cover: true }, required: false, limit: 1 },
-        { model: User, as: 'landlord', attributes: ['id', 'name', 'business_name', 'phone'] },
+        {
+          model: Photo,
+          as: 'photos',
+          required: false,
+          // Fetch all photos — we pick cover or first in the response
+          separate: false,
+        },
+        {
+          model: User,
+          as: 'landlord',
+          attributes: ['id', 'name', 'business_name', 'phone'],
+        },
       ],
-      order: [['created_at', 'DESC']],
+      order: [
+        ['created_at', 'DESC'],
+        [{ model: Photo, as: 'photos' }, 'order_index', 'ASC'],
+      ],
       limit: parseInt(limit),
       offset,
+      distinct: true,
+    });
+
+    // Normalise: attach a single `cover_photo` field so the frontend
+    // always has a photo to show — cover first, otherwise first photo.
+    const listings = rows.map((listing) => {
+      const data = listing.toJSON();
+      const photos = data.photos || [];
+      const cover = photos.find((p) => p.is_cover) || photos[0] || null;
+      return { ...data, cover_photo: cover };
     });
 
     // Log search analytics
@@ -61,7 +84,7 @@ router.get('/', optionalAuth, async (req, res) => {
     }
 
     res.json({
-      listings: rows,
+      listings,
       total: count,
       pages: Math.ceil(count / parseInt(limit)),
       current_page: parseInt(page),
@@ -79,7 +102,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
       where: { id: req.params.id, status: 'approved' },
       include: [
         { model: Photo, as: 'photos', order: [['order_index', 'ASC']] },
-        { model: User, as: 'landlord', attributes: ['id', 'name', 'business_name', 'phone', 'whatsapp_number'] },
+        {
+          model: User,
+          as: 'landlord',
+          attributes: ['id', 'name', 'business_name', 'phone', 'whatsapp_number'],
+        },
       ],
     });
 
@@ -140,7 +167,7 @@ router.patch('/:id', authenticate, requireRole('user_admin', 'head_admin'), asyn
     const listing = await Listing.findByPk(req.params.id);
     if (!listing) return res.status(404).json({ error: 'Not found' });
 
-    const isOwner = listing.landlord_id === req.user.id;
+    const isOwner     = listing.landlord_id === req.user.id;
     const isHeadAdmin = req.user.role === 'head_admin';
 
     if (!isOwner && !isHeadAdmin) {
@@ -166,7 +193,7 @@ router.patch('/:id', authenticate, requireRole('user_admin', 'head_admin'), asyn
   }
 });
 
-// ── POST /api/listings/:id/submit ─── Submit for approval ────────────────────
+// ── POST /api/listings/:id/submit ─── Submit for approval ─────────────────────
 router.post('/:id/submit', authenticate, requireRole('user_admin'), async (req, res) => {
   try {
     const listing = await Listing.findOne({
@@ -183,12 +210,12 @@ router.post('/:id/submit', authenticate, requireRole('user_admin'), async (req, 
   }
 });
 
-// ── GET /api/listings/my/all ─── Landlord sees own listings ──────────────────
+// ── GET /api/listings/my/all ─── Landlord sees own listings ───────────────────
 router.get('/my/all', authenticate, requireRole('user_admin', 'head_admin'), async (req, res) => {
   try {
     const listings = await Listing.findAll({
       where: { landlord_id: req.user.id },
-      include: [{ model: Photo, as: 'photos', where: { is_cover: true }, required: false }],
+      include: [{ model: Photo, as: 'photos', required: false }],
       order: [['created_at', 'DESC']],
     });
     res.json(listings);
