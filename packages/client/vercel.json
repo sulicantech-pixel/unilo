@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm install --prefix ../.. && npm run build",
+  "installCommand": "echo skip"
+}
