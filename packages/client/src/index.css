@@ -1,99 +1,162 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,700;0,900;1,700&display=swap');
+/* ─── CSS Variables ─────────────────────────────────────── */
+:root {
+  --ink:        #0a0a0a;
+  --ink-900:    #111111;
+  --ink-800:    #161616;
+  --ink-700:    #1e1e1e;
+  --brand:      #ff6b00;
+  --brand-light:#ff8533;
+  --brand-dark: #e55f00;
+  --cream:      #f5f0e8;
+  --muted:      rgba(255,255,255,0.38);
+  --wire:       rgba(255,255,255,0.08);
+  --ghost:      rgba(255,255,255,0.05);
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+}
 
+/* ─── Base ──────────────────────────────────────────────── */
 @layer base {
-  * {
-    -webkit-tap-highlight-color: transparent;
+  *, *::before, *::after {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
 
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    font-family: 'Outfit', sans-serif;
-    background-color: #0a0a0a;
-    color: #ffffff;
+    font-family: 'DM Sans', sans-serif;
+    background-color: var(--ink);
+    color: var(--cream);
     min-height: 100dvh;
+    overflow-x: hidden;
   }
 
-  /* Safe area insets for iOS notch / bottom bar */
+  /* Safe area helpers */
   .safe-top    { padding-top:    env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
 
-@layer utilities {
-  /* Brand colour tokens — used across all components */
-  .bg-brand        { background-color: #ff6b00; }
-  .bg-brand-light  { background-color: #ff8533; }
-  .text-brand      { color: #ff6b00; }
-  .border-brand    { border-color: #ff6b00; }
-
-  /* Dark surface tokens */
-  .bg-navy         { background-color: #0a0a0a; }
-  .bg-navy-800     { background-color: #141414; }
-  .bg-surface      { background-color: #1a1a1a; }
-
-  /* Text tokens */
-  .text-cream      { color: #ffffff; }
-  .text-muted      { color: rgba(255,255,255,0.45); }
-
-  /* Font tokens */
-  .font-display    { font-family: 'Outfit', sans-serif; }
-  .font-body       { font-family: 'Outfit', sans-serif; }
-  .font-hero       { font-family: 'Fraunces', serif; }
-}
-
+/* ─── Components ────────────────────────────────────────── */
 @layer components {
+  /* Buttons */
   .btn-primary {
-    @apply bg-brand text-white font-semibold px-6 py-3 rounded-2xl
-           transition-all duration-200 active:scale-95
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-brand text-white font-body font-semibold px-6 py-3 rounded-xl
+           transition-all duration-200 active:scale-95 hover:bg-brand-light
+           disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap;
   }
-  .btn-primary:hover { background-color: #ff8533; }
-
   .btn-ghost {
-    @apply border border-white/20 text-white font-medium px-6 py-3
-           rounded-2xl transition-all duration-200 active:scale-95;
+    @apply border border-wire text-cream font-body font-medium px-6 py-3
+           rounded-xl transition-all duration-200 active:scale-95 hover:bg-ghost;
   }
-  .btn-ghost:hover { background-color: rgba(255,255,255,0.08); }
+  .btn-wa {
+    @apply flex items-center gap-2 bg-emerald-500 text-white font-body font-semibold
+           px-5 py-3 rounded-xl transition-all duration-200 active:scale-95 hover:bg-emerald-600;
+  }
 
-  /* Listing card shell */
+  /* Cards */
   .card {
-    background: #141414;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    overflow: hidden;
+    @apply bg-ink-900 border border-wire rounded-2xl overflow-hidden;
+  }
+  .card-hover {
+    @apply card transition-all duration-200 hover:border-brand/30 hover:shadow-card;
   }
 
+  /* Inputs */
   .input {
-    @apply bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white
-           placeholder:text-white/30 focus:outline-none
-           transition-colors w-full;
-    font-family: 'Outfit', sans-serif;
+    @apply bg-ghost border border-wire rounded-lg px-4 py-3 text-cream
+           placeholder:text-muted focus:outline-none focus:border-brand/60
+           transition-colors w-full font-body text-sm;
   }
-  .input:focus { border-color: #ff6b00; }
+  .input-dark {
+    @apply bg-ink-800 border border-wire rounded-lg px-4 py-3 text-cream
+           placeholder:text-muted focus:outline-none focus:border-brand/60
+           transition-colors w-full font-body text-sm;
+  }
 
+  /* Badges */
   .badge {
-    @apply text-xs font-medium px-2.5 py-1 rounded-full;
-    font-family: 'Outfit', sans-serif;
+    @apply text-[10px] font-body font-semibold px-2.5 py-1 rounded-full;
+  }
+  .badge-brand {
+    @apply badge bg-brand/15 text-brand border border-brand/25;
+  }
+  .badge-wire {
+    @apply badge bg-ghost text-muted border border-wire;
+  }
+  .badge-vacant {
+    @apply badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/25;
+  }
+  .badge-taken {
+    @apply badge bg-ghost text-muted border border-wire;
+  }
+
+  /* Section title */
+  .section-title {
+    @apply font-display font-bold text-cream text-lg;
+  }
+
+  /* Divider */
+  .divider {
+    @apply w-full h-px bg-wire my-5;
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* ─── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,107,0,0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* Page transition */
-.page-enter { animation: fadeSlideUp 0.3s ease both; }
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
+/* ─── Page animation ────────────────────────────────────── */
+.page-enter {
+  animation: fadeUp 0.28s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Spin ──────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 32px; height: 32px;
+  border: 2.5px solid var(--brand);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+/* ─── Pulse skeleton ────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.skeleton {
+  background: var(--ghost);
+  border-radius: var(--radius-lg);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* ─── Vacancy pulse dot ─────────────────────────────────── */
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.dot-pulse { animation: dot-pulse 1.8s ease-in-out infinite; }
+
+/* ─── Bottom nav height utility ─────────────────────────── */
+.pb-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
