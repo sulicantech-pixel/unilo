@@ -1,193 +1,139 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const TYPE_LABELS = {
-  self_contain:      'Self Contain',
-  room_and_parlour:  'Room & Parlour',
-  flat:              'Flat',
-  mini_flat:         'Mini Flat',
-  apartment:         'Apartment',
-  bq:                'BQ',
-  hostel:            'Hostel',
-  roommate:          'Roommate',
+  self_contain:     'Self Contain',
+  shared_room:      'Shared Room',
+  room_and_parlour: 'Room & Parlour',
+  flat:             'Flat',
+  bungalow:         'Bungalow',
+  duplex:           'Duplex',
+  hostel:           'Hostel',
+  boys_hostel:      'Boys Hostel',
+  girls_hostel:     'Girls Hostel',
 };
 
+function formatPrice(price) {
+  const n = Number(price);
+  if (!n) return '—';
+  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}m`;
+  if (n >= 1_000)     return `₦${(n / 1_000).toFixed(0)}k`;
+  return `₦${n.toLocaleString()}`;
+}
+
 export default function ListingCard({ listing }) {
-  const navigate    = useNavigate();
-  const [imgIdx, setImgIdx] = useState(0);
-  const photos      = listing.photos ?? [];
-  const cover       = photos[imgIdx]?.url ?? photos[imgIdx];
-  const hasMultiple = photos.length > 1;
-
-  const price = new Intl.NumberFormat('en-NG', {
-    style: 'currency', currency: 'NGN', maximumFractionDigits: 0,
-  }).format(listing.price);
-
-  const S = {
-    card: {
-      background: '#141414',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 16,
-      overflow: 'hidden',
-      cursor: 'pointer',
-      fontFamily: "'Outfit', sans-serif",
-    },
-    imgWrap: {
-      position: 'relative',
-      height: 180,
-      background: 'rgba(255,255,255,0.04)',
-      overflow: 'hidden',
-    },
-    img: {
-      width: '100%', height: '100%',
-      objectFit: 'cover',
-      transition: 'transform 0.4s ease',
-    },
-    placeholder: {
-      width: '100%', height: '100%',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 36, color: 'rgba(255,255,255,0.15)',
-    },
-    badgeRow: {
-      position: 'absolute', top: 10, left: 10,
-      display: 'flex', gap: 6,
-    },
-    badge: (color) => ({
-      background: color,
-      backdropFilter: 'blur(8px)',
-      color: '#fff', fontSize: 10, fontWeight: 600,
-      padding: '4px 10px', borderRadius: 100,
-      fontFamily: "'Outfit', sans-serif",
-    }),
-    vacancyBadge: (vacant) => ({
-      position: 'absolute', top: 10, right: 10,
-      background: vacant ? 'rgba(255,107,0,0.9)' : 'rgba(255,255,255,0.15)',
-      backdropFilter: 'blur(8px)',
-      color: '#fff', fontSize: 10, fontWeight: 600,
-      padding: '4px 10px', borderRadius: 100,
-    }),
-    dots: {
-      position: 'absolute', bottom: 8, left: '50%',
-      transform: 'translateX(-50%)',
-      display: 'flex', gap: 4,
-    },
-    dot: (active) => ({
-      width: active ? 14 : 5, height: 5,
-      borderRadius: 3,
-      background: active ? '#ff6b00' : 'rgba(255,255,255,0.4)',
-      transition: 'all 0.2s',
-    }),
-    wishBtn: {
-      position: 'absolute', top: 10, right: 10,
-      background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
-      border: 'none', borderRadius: '50%',
-      width: 32, height: 32,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', color: '#fff',
-    },
-    info: { padding: '12px 14px 14px' },
-    title: {
-      fontSize: 13, fontWeight: 600, color: '#fff',
-      margin: '0 0 4px',
-      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-    },
-    location: {
-      fontSize: 11, color: 'rgba(255,255,255,0.4)',
-      display: 'flex', alignItems: 'center', gap: 3,
-      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-    },
-    priceRow: {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      marginTop: 10,
-    },
-    price: { fontSize: 15, fontWeight: 700, color: '#ff6b00' },
-    pricePeriod: { fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 3 },
-    meta: { display: 'flex', gap: 10, color: 'rgba(255,255,255,0.4)', fontSize: 11 },
-    metaItem: { display: 'flex', alignItems: 'center', gap: 3 },
-    divider: { width: '100%', height: 1, background: 'rgba(255,255,255,0.05)', margin: '10px 0' },
-  };
+  const navigate = useNavigate();
+  const cover = listing.photos?.[0]?.url ?? listing.photos?.[0];
 
   return (
     <motion.article
-      style={S.card}
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: 0.97 }}
       onClick={() => navigate(`/listing/${listing.id}`)}
+      style={{
+        background: '#111111',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 20,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        fontFamily: 'DM Sans, sans-serif',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = 'rgba(255,107,0,0.3)';
+        e.currentTarget.style.boxShadow   = '0 4px 24px rgba(0,0,0,0.4)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+        e.currentTarget.style.boxShadow   = 'none';
+      }}
     >
       {/* Photo */}
-      <div style={S.imgWrap}>
+      <div style={{ position: 'relative', height: 176, background: '#1a1a1a', overflow: 'hidden' }}>
         {cover ? (
           <img
             src={cover}
             alt={listing.title}
-            style={S.img}
-            onError={(e) => { e.target.style.display = 'none'; }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s' }}
+            onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.target.style.transform = 'scale(1)'}
           />
         ) : (
-          <div style={S.placeholder}>🏠</div>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40 }}>
+            🏠
+          </div>
         )}
 
-        {/* Type badge */}
-        <div style={S.badgeRow}>
-          <span style={S.badge('rgba(10,10,10,0.75)')}>
+        {/* Top-left: type + video badge */}
+        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 6 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99,
+            background: 'rgba(10,10,10,0.75)', color: '#f5f0e8',
+            backdropFilter: 'blur(8px)',
+          }}>
             {TYPE_LABELS[listing.type] || listing.type}
           </span>
           {listing.youtube_video_id && (
-            <span style={S.badge('rgba(220,38,38,0.85)')}>▶ Tour</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99,
+              background: 'rgba(220,38,38,0.85)', color: '#fff',
+            }}>
+              ▶ Tour
+            </span>
           )}
         </div>
 
-        {/* Vacancy — replaces wishlist when listing is taken */}
-        <span style={S.vacancyBadge(listing.is_vacant)}>
-          {listing.is_vacant ? 'Vacant' : 'Taken'}
-        </span>
-
-        {/* Dots indicator for multiple photos */}
-        {hasMultiple && (
-          <div style={S.dots}>
-            {photos.map((_, i) => (
-              <div key={i} style={S.dot(i === imgIdx)} />
-            ))}
-          </div>
-        )}
+        {/* Top-right: vacancy */}
+        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+          {listing.is_vacant ? (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 99,
+              background: 'rgba(16,185,129,0.2)', color: '#34d399',
+              border: '1px solid rgba(52,211,153,0.3)',
+            }}>
+              Vacant
+            </span>
+          ) : (
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: '3px 9px', borderRadius: 99,
+              background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.38)',
+            }}>
+              Taken
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Info */}
-      <div style={S.info}>
-        <h3 style={S.title}>{listing.title}</h3>
-        <p style={S.location}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          {listing.address}{listing.city ? `, ${listing.city}` : ''}
+      <div style={{ padding: '14px 16px 16px' }}>
+        <h3 style={{
+          margin: 0, fontSize: 14, fontWeight: 600,
+          color: '#f5f0e8', lineHeight: 1.35,
+          fontFamily: 'Fraunces, serif',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {listing.title}
+        </h3>
+
+        <p style={{
+          margin: '4px 0 0', fontSize: 12,
+          color: 'rgba(255,255,255,0.38)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          📍 {listing.address}, {listing.city}
         </p>
 
-        <div style={S.divider} />
-
-        <div style={S.priceRow}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
           <div>
-            <span style={S.price}>{price}</span>
-            <span style={S.pricePeriod}>
-              / {listing.price_period === 'monthly' ? 'mo' : 'year'}
+            <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 16, color: '#ff6b00' }}>
+              {formatPrice(listing.price)}
+            </span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginLeft: 4 }}>
+              / {listing.price_period === 'monthly' ? 'mo' : 'yr'}
             </span>
           </div>
-          <div style={S.meta}>
-            {listing.bedrooms != null && (
-              <span style={S.metaItem}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                </svg>
-                {listing.bedrooms}bd
-              </span>
-            )}
-            {listing.bathrooms != null && (
-              <span style={S.metaItem}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12h16a1 1 0 0 1 1 1v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3a1 1 0 0 1 1-1z"/><path d="M6 12V5a2 2 0 0 1 2-2h3v2.25"/>
-                </svg>
-                {listing.bathrooms}ba
-              </span>
-            )}
+          <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'rgba(255,255,255,0.38)' }}>
+            <span>🛏 {listing.bedrooms ?? 1}</span>
+            <span>🚿 {listing.bathrooms ?? 1}</span>
           </div>
         </div>
       </div>
