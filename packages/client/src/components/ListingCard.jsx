@@ -3,24 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 const HeartIcon = ({ filled }) => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? '#ff6b00' : 'none'}
+  <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? '#ff6b00' : 'none'}
     stroke={filled ? '#ff6b00' : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 );
 
-const StarIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff6b00" stroke="none">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </svg>
-);
-
 const ClusterIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 
@@ -29,24 +21,18 @@ export default function ListingCard({ listing, wishlistIds = [], onWishlistToggl
   const { isAuthenticated } = useAuthStore();
   const [imgIndex, setImgIndex] = useState(0);
   const hoverTimer = useRef(null);
+  const touchStartX = useRef(null);
 
   const {
-    id,
-    title,
-    price,
-    location,
-    university,
-    photos = [],
-    rating,
-    reviewCount,
-    isCluster,
-    clusterSpotsLeft,
-    distanceFromSchool,
+    id, title, price, junction, campus, university,
+    photos = [], isCluster, clusterSpotsLeft, isNew,
     accommodationType,
-    isNew,
   } = listing;
 
-  const images = photos.length > 0 ? photos : ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80'];
+  const images = photos.length > 0
+    ? photos
+    : ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80'];
+
   const isWishlisted = wishlistIds.includes(id);
 
   const formatPrice = (p) => {
@@ -54,29 +40,27 @@ export default function ListingCard({ listing, wishlistIds = [], onWishlistToggl
     return '₦' + Number(p).toLocaleString('en-NG');
   };
 
-  const handleMouseEnter = () => {
-    hoverTimer.current = Date.now();
+  const subtitle = [junction, campus].filter(Boolean).join(' · ');
+
+  // Analytics helpers
+  const track = (eventType, extra = {}) => {
+    fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType, listingId: id, ...extra }),
+    }).catch(() => {});
   };
 
+  const handleMouseEnter = () => { hoverTimer.current = Date.now(); };
   const handleMouseLeave = () => {
     if (hoverTimer.current) {
-      const duration = Date.now() - hoverTimer.current;
+      track('listing_hover', { durationMs: Date.now() - hoverTimer.current });
       hoverTimer.current = null;
-      // Fire analytics
-      fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventType: 'listing_hover', listingId: id, durationMs: duration }),
-      }).catch(() => {});
     }
   };
 
   const handleClick = () => {
-    fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventType: 'listing_click', listingId: id }),
-    }).catch(() => {});
+    track('listing_click');
     navigate(`/listing/${id}`);
   };
 
@@ -84,106 +68,89 @@ export default function ListingCard({ listing, wishlistIds = [], onWishlistToggl
     e.stopPropagation();
     if (!isAuthenticated) { navigate('/login'); return; }
     onWishlistToggle?.(id);
-    fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventType: 'listing_wishlist', listingId: id, action: isWishlisted ? 'unsave' : 'save' }),
-    }).catch(() => {});
+    track('listing_wishlist', { action: isWishlisted ? 'unsave' : 'save' });
   };
 
-  const cyclePhoto = (e, dir) => {
-    e.stopPropagation();
-    setImgIndex(i => (i + dir + images.length) % images.length);
+  // Swipe support for photo cycling
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      setImgIndex(i => diff > 0
+        ? (i + 1) % images.length
+        : (i - 1 + images.length) % images.length
+      );
+    }
+    touchStartX.current = null;
   };
 
   return (
     <div
-      className="group cursor-pointer"
+      className="group cursor-pointer flex-shrink-0 w-[200px] sm:w-[220px]"
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Photo container */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#1a1a1a]" style={{ paddingBottom: '66.67%' }}>
+      {/* Photo */}
+      <div
+        className="relative overflow-hidden rounded-xl bg-[#1a1a1a]"
+        style={{ paddingBottom: '75%' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <img
           src={images[imgIndex]}
           alt={title}
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-[7000ms] ease-in-out group-hover:scale-110 group-hover:translate-x-[3%]"
           loading="lazy"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
-        {/* Dark gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-
-        {/* Wishlist button */}
+        {/* Wishlist */}
         <button
           onClick={handleWishlist}
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
-          aria-label="Save to wishlist"
+          className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
         >
           <HeartIcon filled={isWishlisted} />
         </button>
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+        <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
           {isNew && (
-            <span className="text-[10px] font-semibold bg-[#ff6b00] text-white px-2 py-0.5 rounded-full">New</span>
+            <span className="text-[9px] font-bold bg-[#ff6b00] text-white px-1.5 py-0.5 rounded-full">NEW</span>
           )}
           {isCluster && (
-            <span className="text-[10px] font-semibold bg-white/15 backdrop-blur-sm text-white px-2 py-0.5 rounded-full flex items-center gap-1">
-              <ClusterIcon /> Cluster · {clusterSpotsLeft} spot{clusterSpotsLeft !== 1 ? 's' : ''} left
+            <span className="text-[9px] font-semibold bg-black/60 backdrop-blur-sm text-white px-1.5 py-0.5 rounded-full flex items-center gap-1">
+              <ClusterIcon /> Cluster
             </span>
           )}
         </div>
 
-        {/* Photo nav dots */}
+        {/* Photo dots */}
         {images.length > 1 && (
-          <>
-            <button onClick={(e) => cyclePhoto(e, -1)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs z-10">
-              ‹
-            </button>
-            <button onClick={(e) => cyclePhoto(e, 1)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs z-10">
-              ›
-            </button>
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
-              {images.map((_, i) => (
-                <div key={i} className={`w-1 h-1 rounded-full transition-colors ${i === imgIndex ? 'bg-white' : 'bg-white/40'}`} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Distance pill — bottom left */}
-        {distanceFromSchool && (
-          <span className="absolute bottom-2 left-3 text-[10px] text-white bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
-            {distanceFromSchool} walk
-          </span>
+          <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+            {images.map((_, i) => (
+              <div key={i} className={`w-1 h-1 rounded-full transition-colors ${i === imgIndex ? 'bg-white' : 'bg-white/40'}`} />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Info */}
+      {/* Info — 3 lines */}
       <div className="mt-2 px-0.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">{title}</p>
-            <p className="text-[#888] text-xs mt-0.5 truncate">{location || university}</p>
-            {accommodationType && (
-              <p className="text-[#555] text-xs mt-0.5">{accommodationType}</p>
-            )}
-          </div>
-          {rating && (
-            <div className="flex items-center gap-1 shrink-0 mt-0.5">
-              <StarIcon />
-              <span className="text-white text-xs font-medium">{rating}</span>
-              {reviewCount && <span className="text-[#555] text-xs">({reviewCount})</span>}
-            </div>
-          )}
-        </div>
-        <p className="mt-1.5 text-white text-sm">
-          <span className="font-semibold text-[#ff6b00]">{formatPrice(price)}</span>
-          <span className="text-[#666] font-normal"> / year</span>
+        {/* Line 1: Title */}
+        <p className="text-white text-sm font-semibold leading-tight line-clamp-1">{title}</p>
+
+        {/* Line 2: Junction · Campus */}
+        <p className="text-[#777] text-xs mt-0.5 line-clamp-1">
+          {subtitle || accommodationType || university || '—'}
+        </p>
+
+        {/* Line 3: Price */}
+        <p className="mt-1 text-sm">
+          <span className="text-white font-bold">{formatPrice(price)}</span>
+          <span className="text-[#555] text-xs font-normal"> / year</span>
         </p>
       </div>
     </div>
