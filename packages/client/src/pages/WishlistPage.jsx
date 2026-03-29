@@ -1,96 +1,77 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
-import ListingCard from '../components/ListingCard';
-import BottomNav from '../components/BottomNav';
 
+// Wishlist is client-side for now; plug into API later
 export default function WishlistPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, token } = useAuthStore();
-  const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [wishlistIds, setWishlistIds] = useState([]);
+  const { isAuthenticated } = useAuthStore();
 
-  useEffect(() => {
-    if (!isAuthenticated) { setLoading(false); return; }
-    fetch(`${import.meta.env.VITE_API_URL}/users/wishlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => {
-        const list = data.listings || data || [];
-        setListings(list);
-        setWishlistIds(list.map(l => l.id));
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [isAuthenticated]);
+  if (!isAuthenticated) {
+    return (
+      <>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap'); *{box-sizing:border-box;}`}</style>
+        <div style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: 'DM Sans, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', paddingBottom: 100 }}>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>❤️</div>
+          <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 10px' }}>Save your favourites</h2>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginBottom: 28, lineHeight: 1.6, maxWidth: 280 }}>
+            Log in to save listings and compare rooms across Nigeria.
+          </p>
+          <Link to="/login"
+            style={{ background: '#ff6b00', color: '#fff', borderRadius: 12, padding: '13px 32px', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
+            Log in
+          </Link>
+          <Link to="/register"
+            style={{ marginTop: 14, fontSize: 13, color: 'rgba(255,255,255,0.45)', textDecoration: 'none' }}>
+            Create a free account →
+          </Link>
+        </div>
+      </>
+    );
+  }
 
-  if (!isAuthenticated) return (
-    <div className="min-h-dvh bg-[#0a0a0a] flex flex-col items-center justify-center px-6 text-center pb-24">
-      <div className="w-16 h-16 rounded-2xl bg-[#1a1a1a] flex items-center justify-center mx-auto mb-5">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-      </div>
-      <h2 className="text-white font-semibold text-lg mb-2">Log in to see your wishlist</h2>
-      <p className="text-[#555] text-sm mb-6">Save rooms you love and come back to them anytime.</p>
-      <button onClick={() => navigate('/login')} className="bg-[#ff6b00] text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-[#e55f00] transition-colors">
-        Log in
-      </button>
-      <BottomNav />
-    </div>
-  );
+  // Authenticated but no saved items (plug real data here later)
+  const saved = [];
 
   return (
-    <div className="min-h-dvh bg-[#0a0a0a] text-white">
-      <div className="sticky top-0 z-30 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-white/5 px-4 py-4 pt-14">
-        <h1 className="text-white text-xl font-bold font-[Fraunces]">Wishlist</h1>
-        {listings.length > 0 && <p className="text-[#555] text-xs mt-0.5">{listings.length} saved room{listings.length !== 1 ? 's' : ''}</p>}
-      </div>
+    <>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap'); *{box-sizing:border-box;}`}</style>
+      <div style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: 'DM Sans, sans-serif', color: '#fff', paddingBottom: 100 }}>
 
-      <div className="px-4 pb-28 pt-4">
-        {loading ? (
-          <div className="grid grid-cols-2 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="rounded-2xl bg-[#1a1a1a]" style={{ paddingBottom: '66.67%' }} />
-                <div className="mt-2 h-3 bg-[#1a1a1a] rounded w-3/4" />
-              </div>
-            ))}
-          </div>
-        ) : listings.length === 0 ? (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#1a1a1a] flex items-center justify-center mb-4">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-            </div>
-            <p className="text-white font-semibold mb-1">No saved rooms yet</p>
-            <p className="text-[#555] text-sm mb-5">Tap the heart on any listing to save it here.</p>
-            <button onClick={() => navigate('/')} className="text-sm font-medium text-[#ff6b00] border border-[#ff6b00]/30 px-5 py-2.5 rounded-full hover:bg-[#ff6b00]/10 transition-colors">
-              Browse rooms
+        {/* Header */}
+        <div style={{ padding: '20px 16px 16px', paddingTop: 'max(20px, env(safe-area-inset-top))', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 800, margin: 0 }}>Saved Rooms</h1>
+          {saved.length > 0 && (
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>{saved.length} rooms saved</p>
+          )}
+        </div>
+
+        {saved.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}
+          >
+            <div style={{ fontSize: 56, marginBottom: 20 }}>🏚</div>
+            <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 20, fontWeight: 700, margin: '0 0 10px' }}>No saved rooms yet</h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginBottom: 28, maxWidth: 280, lineHeight: 1.6 }}>
+              Tap the ❤️ on any listing to save it here for later.
+            </p>
+            <button onClick={() => navigate('/search')}
+              style={{ background: '#ff6b00', color: '#fff', border: 'none', borderRadius: 12, padding: '13px 28px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+              Browse listings
             </button>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {listings.map(listing => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                wishlistIds={wishlistIds}
-                onWishlistToggle={(id) => {
-                  setWishlistIds(prev => prev.filter(x => x !== id));
-                  setListings(prev => prev.filter(l => l.id !== id));
-                }}
-              />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, padding: 16 }}>
+            {saved.map((listing, i) => (
+              <motion.div key={listing.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+                {/* ListingCard would go here */}
+              </motion.div>
             ))}
           </div>
         )}
       </div>
-      <BottomNav />
-    </div>
+    </>
   );
 }
