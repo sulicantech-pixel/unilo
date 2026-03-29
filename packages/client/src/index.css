@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
-
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -25,7 +22,6 @@
     overflow-x: hidden;
   }
 
-  /* Hide scrollbars on horizontal scroll rows */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -39,12 +35,8 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 16px);
   }
-  .font-display {
-    font-family: 'Fraunces', serif;
-  }
 }
 
-/* Page fade-in */
 .page-enter {
   animation: fadeSlideUp 0.3s ease both;
 }
