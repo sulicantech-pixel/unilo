@@ -1,7 +1,4 @@
-# Unilo — Student Housing Platform
-
-A full-stack PWA monorepo for Nigeria's student housing market.
-
+unilo...platform
 ```
 unilo/
 ├── packages/
