@@ -1,594 +1,716 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ListingCard from '../components/ListingCard';
-import { useAuthStore } from '../store/authStore';
 
-/* ─── Constants ─────────────────────────────────────────────────── */
-const NIGERIAN_UNIVERSITIES = [
-  'All Universities',
-  'Nnamdi Azikiwe University (Unizik)',
-  'University of Port Harcourt (UniPort)',
-  'Rivers State University (RSU)',
-  'Obafemi Awolowo University (OAU)',
-  'University of Lagos (UNILAG)',
-  'University of Ibadan (UI)',
-  'University of Nigeria, Nsukka (UNN)',
-  'Ahmadu Bello University (ABU)',
-  'University of Benin (UNIBEN)',
-  'Lagos State University (LASU)',
-  'Covenant University',
-  'Babcock University',
+const UNIVERSITIES = [
+  { label: 'Any university', value: '' },
+  { label: 'University of Lagos (UNILAG)', value: 'unilag' },
+  { label: 'University of Port Harcourt (UNIPORT)', value: 'uniport' },
+  { label: 'Obafemi Awolowo University (OAU)', value: 'oau' },
+  { label: 'University of Nigeria (UNN)', value: 'unn' },
+  { label: 'Ahmadu Bello University (ABU)', value: 'abu' },
+  { label: 'University of Ibadan (UI)', value: 'ui' },
+  { label: 'Federal University of Technology Akure (FUTA)', value: 'futa' },
+  { label: 'Covenant University', value: 'covenant' },
+  { label: 'Babcock University', value: 'babcock' },
+  { label: 'Rivers State University (RSU)', value: 'rsu' },
 ];
 
-const CATEGORY_TABS = ['All', 'Trending', 'On Campus', 'Off Campus', 'Filters'];
+const CAMPUS_OPTIONS = ['Any campus', 'On campus', 'Off campus', 'Near gate', 'Town'];
+const ACCOMMODATION_OPTIONS = ['Any accommodation', 'Room', 'Roommate', 'Self-contain', 'Mini flat', 'Apartment', 'BQ'];
+const ROOM_REGION_OPTIONS = ['Any room region', 'On campus', 'Off campus', 'Near gate', 'Town'];
+const JUNCTION_OPTIONS = ['Any junction', 'Main gate', 'Back gate', 'School road', 'Market area', 'Town center'];
+const DISTANCE_OPTIONS = ['Any distance', '< 5 min walk', '5–10 min', '10–20 min', '20–30 min', '> 30 min'];
+const PRICE_OPTIONS = ['Any price / year', 'Under ₦100k', '₦100k–₦200k', '₦200k–₦400k', '₦400k–₦700k', '₦700k+'];
 
-const FILTER_OPTIONS = [
-  { label: 'Filter by Type',  key: 'type' },
-  { label: 'By Junction',     key: 'junction' },
-  { label: 'By Distance',     key: 'distance' },
-  { label: 'By Price',        key: 'price' },
-  { label: 'By Map',          key: 'map' },
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
+  { id: 'trending', label: 'Trending', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
+  { id: 'on_campus', label: 'On Campus', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg> },
+  { id: 'off_campus', label: 'Off Campus', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> },
+  { id: 'clusters', label: 'Clusters', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
 ];
 
-const SECTION_ROWS = [
-  { id: 'trending',   label: 'Trending',   query: '?limit=8&category=trending' },
-  { id: 'on_campus',  label: 'On Campus',  query: '?limit=8&category=on_campus' },
-  { id: 'off_campus', label: 'Off Campus', query: '?limit=8&category=off_campus' },
-];
+function FilterPanel({ filters, setFilters, onSearch, onClose, isMobile }) {
+  const [uniSearch, setUniSearch] = useState('');
+  const filtered = UNIVERSITIES.filter(u =>
+    u.label.toLowerCase().includes(uniSearch.toLowerCase())
+  );
 
-/* ─── Feather SVG Icons ──────────────────────────────────────────── */
-const SearchIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-  </svg>
-);
-const ChevronDown = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9"/>
-  </svg>
-);
-const ProfileIcon = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-);
-const CloseIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
-const ArrowRight = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-  </svg>
-);
-const ChevronLeft = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6"/>
-  </svg>
-);
-const ChevronRight = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-);
-const FilterIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
-  </svg>
-);
-const PinIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-  </svg>
-);
+  const Field = ({ label, children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</label>
+      {children}
+    </div>
+  );
 
-/* ─── Horizontal Listing Row ─────────────────────────────────────── */
-function ListingRow({ sectionId, label, apiQuery, navigate }) {
-  const rowRef = useRef(null);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['listings', sectionId],
-    queryFn: () => api.get(`/listings${apiQuery}`).then(r => r.data),
-  });
-
-  const listings = data?.listings ?? data?.data ?? [];
-
-  const scroll = (dir) => {
-    if (!rowRef.current) return;
-    rowRef.current.scrollBy({ left: dir * 210, behavior: 'smooth' });
+  const selectStyle = {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    borderRadius: 10,
+    color: '#fff',
+    padding: '10px 12px',
+    fontSize: 14,
+    fontFamily: "'DM Sans', sans-serif",
+    outline: 'none',
+    width: '100%',
+    cursor: 'pointer',
+    appearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center',
+    paddingRight: 36,
   };
 
-  const arrowBtn = (dir) => ({
-    position: 'absolute',
-    [dir === -1 ? 'left' : 'right']: 4,
-    top: '50%', transform: 'translateY(-50%)',
-    zIndex: 10,
-    background: 'rgba(10,10,10,0.88)',
+  const inputStyle = {
+    background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '50%', width: 28, height: 28,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer', color: '#fff',
-  });
+    borderRadius: 10,
+    color: '#fff',
+    padding: '10px 12px',
+    fontSize: 14,
+    fontFamily: "'DM Sans', sans-serif",
+    outline: 'none',
+    width: '100%',
+  };
 
   return (
-    <div style={{ marginBottom: 4 }}>
-      {/* Row header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '20px 18px 10px',
-      }}>
-        <span style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700, color: '#fff' }}>
-          {label}
-        </span>
-        <button
-          onClick={() => navigate(`/search?category=${sectionId}`)}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: '#ff6b00', fontSize: 12, fontWeight: 600,
-            fontFamily: "'Outfit', sans-serif",
-            display: 'flex', alignItems: 'center', gap: 4,
-          }}
-        >
-          See all <ArrowRight />
-        </button>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 20,
+      padding: isMobile ? '8px 0 0' : '24px 0 0',
+    }}>
+      {isMobile && (
+        <div style={{
+          width: 40, height: 4,
+          background: 'rgba(255,255,255,0.2)',
+          borderRadius: 100,
+          margin: '0 auto 8px',
+        }} />
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 16 }}>
+        {/* University with search */}
+        <Field label="University">
+          <div style={{ position: 'relative' }}>
+            <input
+              style={{ ...inputStyle, paddingLeft: 36 }}
+              placeholder="Search university…"
+              value={uniSearch || (filters.university ? UNIVERSITIES.find(u => u.value === filters.university)?.label : '')}
+              onChange={e => { setUniSearch(e.target.value); if (!e.target.value) setFilters(f => ({ ...f, university: '' })); }}
+            />
+            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            {uniSearch && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                background: '#1a2436', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 10, marginTop: 4, maxHeight: 200, overflowY: 'auto',
+              }}>
+                {filtered.map(u => (
+                  <div key={u.value}
+                    onClick={() => { setFilters(f => ({ ...f, university: u.value })); setUniSearch(''); }}
+                    style={{ padding: '10px 14px', fontSize: 13, color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                    onMouseEnter={e => e.target.style.background = 'rgba(255,107,0,0.15)'}
+                    onMouseLeave={e => e.target.style.background = 'transparent'}
+                  >{u.label}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Field>
+
+        <Field label="Campus">
+          <select style={selectStyle} value={filters.campus} onChange={e => setFilters(f => ({ ...f, campus: e.target.value }))}>
+            {CAMPUS_OPTIONS.map(o => <option key={o} value={o === 'Any campus' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Accommodation">
+          <select style={selectStyle} value={filters.accommodation} onChange={e => setFilters(f => ({ ...f, accommodation: e.target.value }))}>
+            {ACCOMMODATION_OPTIONS.map(o => <option key={o} value={o === 'Any accommodation' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Room Region">
+          <select style={selectStyle} value={filters.roomRegion} onChange={e => setFilters(f => ({ ...f, roomRegion: e.target.value }))}>
+            {ROOM_REGION_OPTIONS.map(o => <option key={o} value={o === 'Any room region' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Junction">
+          <select style={selectStyle} value={filters.junction} onChange={e => setFilters(f => ({ ...f, junction: e.target.value }))}>
+            {JUNCTION_OPTIONS.map(o => <option key={o} value={o === 'Any junction' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Distance">
+          <select style={selectStyle} value={filters.distance} onChange={e => setFilters(f => ({ ...f, distance: e.target.value }))}>
+            {DISTANCE_OPTIONS.map(o => <option key={o} value={o === 'Any distance' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Move-in Date">
+          <input type="date" style={inputStyle} value={filters.moveIn} onChange={e => setFilters(f => ({ ...f, moveIn: e.target.value }))} />
+        </Field>
+
+        <Field label="Price / Year">
+          <select style={selectStyle} value={filters.price} onChange={e => setFilters(f => ({ ...f, price: e.target.value }))}>
+            {PRICE_OPTIONS.map(o => <option key={o} value={o === 'Any price / year' ? '' : o} style={{ background: '#1a2436' }}>{o}</option>)}
+          </select>
+        </Field>
       </div>
 
-      {/* Scrollable strip */}
-      <div style={{ position: 'relative' }}>
-        <button style={arrowBtn(-1)} onClick={() => scroll(-1)}><ChevronLeft /></button>
-
-        <div
-          ref={rowRef}
-          style={{
-            display: 'flex', gap: 10,
-            overflowX: 'auto', scrollbarWidth: 'none',
-            padding: '0 18px 14px',
-            scrollSnapType: 'x mandatory',
-          }}
-        >
-          {isLoading
-            ? [0,1,2,3].map(i => (
-                <div key={i} style={{
-                  minWidth: 196, height: 196,
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: 14, flexShrink: 0,
-                  animation: 'pulse 1.4s ease-in-out infinite',
-                  animationDelay: `${i * 0.1}s`,
-                }} />
-              ))
-            : listings.length > 0
-              ? listings.map((listing, i) => (
-                  <motion.div
-                    key={listing.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    style={{ minWidth: 196, flexShrink: 0, scrollSnapAlign: 'start' }}
-                  >
-                    <ListingCard listing={listing} />
-                  </motion.div>
-                ))
-              : (
-                <div style={{
-                  padding: '40px 0', width: '100%', textAlign: 'center',
-                  color: 'rgba(255,255,255,0.2)', fontSize: 13,
-                  fontFamily: "'Outfit', sans-serif",
-                }}>
-                  No listings yet
-                </div>
-              )
-          }
-        </div>
-
-        <button style={arrowBtn(1)} onClick={() => scroll(1)}><ChevronRight /></button>
-      </div>
-
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '0 18px' }} />
+      <button
+        onClick={onSearch}
+        style={{
+          background: '#ff6b00',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 12,
+          padding: '14px 28px',
+          fontSize: 15,
+          fontWeight: 700,
+          fontFamily: "'DM Sans', sans-serif",
+          cursor: 'pointer',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search Rooms
+      </button>
     </div>
   );
 }
 
-/* ─── Main Page ──────────────────────────────────────────────────── */
 export default function HomePage() {
-  const navigate  = useNavigate();
-  const user      = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    university: '', campus: '', accommodation: '',
+    roomRegion: '', junction: '', distance: '', moveIn: '', price: '',
+  });
 
-  const [activeUni, setActiveUni]         = useState('Nnamdi Azikiwe University (Unizik)');
-  const [showUniDrop, setShowUniDrop]     = useState(false);
-  const [uniSearchQ, setUniSearchQ]       = useState('');
-  const [activeTab, setActiveTab]         = useState('All');
-  const [showFilter, setShowFilter]       = useState(false);
-  const [showSearch, setShowSearch]       = useState(false);
-  const [searchQuery, setSearchQuery]     = useState('');
-
-  const shortUni    = activeUni.replace(/\s*\(.*\)/, '');
-  const uniCode     = activeUni.match(/\(([^)]+)\)/)?.[1] ?? shortUni;
-  const filteredUnis = NIGERIAN_UNIVERSITIES.filter(u =>
-    u.toLowerCase().includes(uniSearchQ.toLowerCase())
-  );
-
-  const visibleSections = SECTION_ROWS.filter(s => {
-    if (activeTab === 'All')        return true;
-    if (activeTab === 'Trending')   return s.id === 'trending';
-    if (activeTab === 'On Campus')  return s.id === 'on_campus';
-    if (activeTab === 'Off Campus') return s.id === 'off_campus';
-    return true;
+  const { data, isLoading } = useQuery({
+    queryKey: ['listings', 'featured'],
+    queryFn: () => api.get('/listings?limit=8').then(r => r.data),
   });
 
   const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-    setShowSearch(false);
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    navigate(`/search?${params}`);
+    setShowFilters(false);
   };
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <main style={{
-      fontFamily: "'Outfit', sans-serif",
-      background: '#0a0a0a',
+      fontFamily: "'DM Sans', sans-serif",
+      background: '#0D1B2A',
       minHeight: '100vh',
-      paddingBottom: 80,
-      color: '#fff',
+      paddingBottom: 100,
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:wght@700;900&display=swap');
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        ::-webkit-scrollbar { display: none; }
-        .hoverable:hover { opacity: 0.8; }
-        .uni-item:hover { background: rgba(255,107,0,0.08) !important; }
-        .filter-row:hover { background: rgba(255,255,255,0.05) !important; }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+        @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+
+        * { box-sizing: border-box; }
+
+        .hero-section {
+          position: relative;
+          padding: 56px 20px 40px;
+          overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+          .hero-section { padding: 80px 48px 56px; }
+        }
+
+        .hero-glow {
+          position: absolute;
+          top: -80px; right: -80px;
+          width: 460px; height: 460px;
+          background: radial-gradient(circle, rgba(255,107,0,0.12) 0%, transparent 70%);
+          pointer-events: none;
+        }
+
+        .hero-glow-2 {
+          position: absolute;
+          bottom: 0; left: -60px;
+          width: 300px; height: 300px;
+          background: radial-gradient(circle, rgba(255,107,0,0.06) 0%, transparent 70%);
+          pointer-events: none;
+        }
+
+        .badge-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255,107,0,0.12);
+          border: 1px solid rgba(255,107,0,0.25);
+          color: #ff6b00;
+          padding: 5px 12px;
+          border-radius: 100px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          margin-bottom: 18px;
+        }
+
+        .hero-title {
+          font-family: 'Clash Display', 'DM Sans', sans-serif;
+          font-size: clamp(2.4rem, 7vw, 4.2rem);
+          font-weight: 700;
+          line-height: 1.08;
+          color: #fff;
+          margin: 0 0 14px;
+          letter-spacing: -0.025em;
+        }
+
+        .hero-title .accent { color: #ff6b00; }
+
+        .hero-sub {
+          color: rgba(255,255,255,0.5);
+          font-size: 15px;
+          line-height: 1.65;
+          margin-bottom: 32px;
+          max-width: 480px;
+        }
+
+        .search-trigger-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(255,255,255,0.07);
+          border: 1px solid rgba(255,255,255,0.14);
+          border-radius: 14px;
+          padding: 14px 20px;
+          color: rgba(255,255,255,0.5);
+          font-family: 'DM Sans', sans-serif;
+          font-size: 15px;
+          cursor: pointer;
+          width: 100%;
+          max-width: 460px;
+          transition: all 0.2s;
+          backdrop-filter: blur(12px);
+        }
+
+        .search-trigger-btn:hover {
+          border-color: rgba(255,107,0,0.4);
+          background: rgba(255,107,0,0.06);
+          color: rgba(255,255,255,0.75);
+        }
+
+        .search-trigger-right {
+          margin-left: auto;
+          background: #ff6b00;
+          color: #fff;
+          border: none;
+          border-radius: 10px;
+          padding: 8px 16px;
+          font-size: 13px;
+          font-weight: 700;
+          font-family: 'DM Sans', sans-serif;
+          cursor: pointer;
+          transition: background 0.2s;
+          white-space: nowrap;
+        }
+
+        /* Desktop filter dropdown */
+        .filter-dropdown {
+          background: rgba(13,27,42,0.98);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 20px;
+          padding: 24px;
+          margin-top: 12px;
+          backdrop-filter: blur(24px);
+          max-width: 700px;
+          box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+        }
+
+        @media (min-width: 768px) {
+          .search-trigger-btn { max-width: 560px; }
+          .filter-dropdown { max-width: 800px; }
+        }
+
+        /* Category tabs */
+        .cat-tabs {
+          display: flex;
+          gap: 6px;
+          overflow-x: auto;
+          padding: 0 20px;
+          scrollbar-width: none;
+          margin-bottom: 28px;
+        }
+
+        .cat-tabs::-webkit-scrollbar { display: none; }
+
+        @media (min-width: 768px) {
+          .cat-tabs { padding: 0 48px; }
+        }
+
+        .cat-tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 100px;
+          font-size: 13px;
+          font-weight: 500;
+          white-space: nowrap;
+          cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.04);
+          color: rgba(255,255,255,0.55);
+          transition: all 0.2s;
+          font-family: 'DM Sans', sans-serif;
+        }
+
+        .cat-tab:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
+
+        .cat-tab.active {
+          background: #ff6b00;
+          border-color: #ff6b00;
+          color: #fff;
+          font-weight: 600;
+        }
+
+        /* Cluster banner */
+        .cluster-banner {
+          margin: 0 20px 28px;
+          background: linear-gradient(135deg, #ff6b00 0%, #e55500 100%);
+          border-radius: 18px;
+          padding: 20px 20px 20px 18px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          cursor: pointer;
+          transition: transform 0.2s;
+        }
+
+        .cluster-banner:hover { transform: scale(1.01); }
+
+        @media (min-width: 768px) {
+          .cluster-banner { margin: 0 48px 36px; }
+        }
+
+        /* Listings grid */
+        .listings-section { padding: 0 20px; }
+
+        @media (min-width: 768px) { .listings-section { padding: 0 48px; } }
+
+        .listings-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+        }
+
+        .section-title {
+          font-family: 'Clash Display', 'DM Sans', sans-serif;
+          font-size: 20px;
+          font-weight: 600;
+          color: #fff;
+          margin: 0;
+        }
+
+        .see-all-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: #ff6b00;
+          font-size: 13px;
+          font-weight: 600;
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+        }
+
+        .listings-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+        }
+
+        @media (min-width: 900px) {
+          .listings-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (min-width: 1200px) {
+          .listings-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .skeleton-card {
+          background: rgba(255,255,255,0.04);
+          border-radius: 14px;
+          height: 260px;
+          animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        /* Mobile bottom sheet overlay */
+        .sheet-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.6);
+          z-index: 200;
+          backdrop-filter: blur(4px);
+        }
+
+        .sheet-panel {
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          background: #0D1B2A;
+          border-top: 1px solid rgba(255,255,255,0.1);
+          border-radius: 24px 24px 0 0;
+          z-index: 201;
+          padding: 16px 20px 40px;
+          max-height: 90svh;
+          overflow-y: auto;
+        }
+
+        /* Landlord bar */
+        .landlord-bar {
+          margin: 36px 20px 0;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 16px;
+          padding: 18px 20px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        @media (min-width: 768px) {
+          .landlord-bar { margin: 36px 48px 0; }
+        }
+
+        .landlord-icon {
+          width: 44px; height: 44px;
+          background: rgba(255,107,0,0.12);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .list-now-btn {
+          margin-left: auto;
+          background: transparent;
+          border: 1px solid #ff6b00;
+          color: #ff6b00;
+          border-radius: 100px;
+          padding: 8px 18px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          white-space: nowrap;
+          transition: all 0.2s;
+        }
+
+        .list-now-btn:hover { background: #ff6b00; color: #fff; }
+
+        select option { background: #0D1B2A; }
       `}</style>
 
-      {/* ──────────── TOP BAR ──────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 18px 12px',
-        position: 'sticky', top: 0, zIndex: 30,
-        background: 'rgba(10,10,10,0.95)',
-        backdropFilter: 'blur(16px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        {/* Greeting + uni pill */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.38)', fontWeight: 400 }}>
-            {user ? `Welcome, ${user.first_name ?? user.name ?? 'back'} 👋` : 'Welcome 👋'}
-          </span>
-          <button
-            onClick={() => setShowUniDrop(v => !v)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              background: 'rgba(255,107,0,0.12)',
-              border: '1px solid rgba(255,107,0,0.3)',
-              borderRadius: 100, padding: '5px 11px 5px 9px',
-              color: '#ff6b00', fontSize: 12, fontWeight: 600,
-              cursor: 'pointer', fontFamily: "'Outfit', sans-serif",
-            }}
-          >
-            <PinIcon /> {uniCode} <ChevronDown />
-          </button>
-        </div>
+      {/* HERO */}
+      <section className="hero-section">
+        <div className="hero-glow" />
+        <div className="hero-glow-2" />
 
-        {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setShowSearch(true)}
-            style={{
-              background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 10, width: 38, height: 38,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: 'rgba(255,255,255,0.5)',
-            }}
-          >
-            <SearchIcon />
-          </button>
-          <button
-            onClick={() => navigate(user ? '/profile' : '/login')}
-            style={{
-              background: user ? '#ff6b00' : 'rgba(255,255,255,0.07)',
-              border: 'none', borderRadius: '50%',
-              width: 38, height: 38,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: '#fff',
-            }}
-          >
-            <ProfileIcon />
-          </button>
-        </div>
-      </div>
+        <motion.div
+          style={{ position: 'relative', zIndex: 1 }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="badge-chip">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            Nigeria's #1 Student Housing
+          </div>
 
-      {/* ──────────── UNIVERSITY DROPDOWN ──────────── */}
+          <h1 className="hero-title">
+            Find your room<br />
+            near <span className="accent">your university.</span>
+          </h1>
+
+          <p className="hero-sub">
+            Verified rooms · No broker fees · Split rent with Cluster
+          </p>
+
+          {/* Search trigger button */}
+          <div style={{ position: 'relative', maxWidth: 560 }}>
+            <button
+              className="search-trigger-btn"
+              onClick={() => setShowFilters(v => !v)}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Search rooms, university, area…
+              <span className="search-trigger-right" onClick={e => { e.stopPropagation(); setShowFilters(true); }}>
+                Search Rooms
+              </span>
+            </button>
+
+            {/* Desktop filter dropdown */}
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  className="filter-dropdown"
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  style={{ display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}
+                >
+                  <FilterPanel
+                    filters={filters}
+                    setFilters={setFilters}
+                    onSearch={handleSearch}
+                    onClose={() => setShowFilters(false)}
+                    isMobile={false}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Mobile Bottom Sheet */}
       <AnimatePresence>
-        {showUniDrop && (
+        {showFilters && (
           <>
-            <div
-              onClick={() => setShowUniDrop(false)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40 }}
+            <motion.div
+              className="sheet-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFilters(false)}
+              style={{ display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : 'block' }}
             />
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.16 }}
-              style={{
-                position: 'fixed', top: 78, left: 18, right: 18, zIndex: 50,
-                background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 18, overflow: 'hidden',
-                boxShadow: '0 24px 60px rgba(0,0,0,0.7)',
-                maxHeight: '65vh', display: 'flex', flexDirection: 'column',
-              }}
+              className="sheet-panel"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              style={{ display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : 'block' }}
             >
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <input
-                  autoFocus
-                  placeholder="Search university…"
-                  value={uniSearchQ}
-                  onChange={e => setUniSearchQ(e.target.value)}
-                  style={{
-                    width: '100%', background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
-                    padding: '9px 13px', color: '#fff', fontSize: 13,
-                    fontFamily: "'Outfit', sans-serif", outline: 'none',
-                  }}
-                />
-              </div>
-              <div style={{ overflowY: 'auto' }}>
-                {filteredUnis.map(u => (
-                  <div
-                    key={u}
-                    className="uni-item"
-                    onClick={() => { setActiveUni(u); setShowUniDrop(false); setUniSearchQ(''); }}
-                    style={{
-                      padding: '13px 16px', fontSize: 13, cursor: 'pointer',
-                      color: u === activeUni ? '#ff6b00' : '#fff',
-                      background: u === activeUni ? 'rgba(255,107,0,0.08)' : 'transparent',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      transition: 'background 0.15s',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    }}
-                  >
-                    <PinIcon /> {u}
-                  </div>
-                ))}
-              </div>
+              <FilterPanel
+                filters={filters}
+                setFilters={setFilters}
+                onSearch={handleSearch}
+                onClose={() => setShowFilters(false)}
+                isMobile={true}
+              />
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* ──────────── SEARCH BAR (tappable placeholder) ──────────── */}
-      <div style={{ padding: '10px 18px 0' }}>
-        <div
-          onClick={() => setShowSearch(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: '#141414', border: '1px solid rgba(255,255,255,0.09)',
-            borderRadius: 14, padding: '12px 16px', cursor: 'text',
-          }}
-        >
-          <span style={{ color: '#ff6b00' }}><SearchIcon /></span>
-          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.28)', flex: 1 }}>
-            Find a room near {shortUni}…
-          </span>
-        </div>
-      </div>
-
-      {/* ──────────── SEARCH FULL OVERLAY ──────────── */}
+      {/* CLUSTER BANNER (only on Clusters tab) */}
       <AnimatePresence>
-        {showSearch && (
-          <>
-            <div onClick={() => setShowSearch(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 55 }} />
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.18 }}
-              style={{
-                position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60,
-                background: '#0a0a0a', padding: '16px 18px 18px',
-                borderBottom: '1px solid rgba(255,255,255,0.07)',
-              }}
-            >
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <div style={{
-                  flex: 1, display: 'flex', alignItems: 'center', gap: 10,
-                  background: '#141414',
-                  border: '1px solid rgba(255,107,0,0.5)',
-                  borderRadius: 14, padding: '12px 16px',
-                }}>
-                  <span style={{ color: '#ff6b00' }}><SearchIcon /></span>
-                  <input
-                    autoFocus
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                    placeholder={`Find a room near ${shortUni}…`}
-                    style={{
-                      flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                      color: '#fff', fontSize: 14, fontFamily: "'Outfit', sans-serif",
-                    }}
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)' }}>
-                      <CloseIcon />
-                    </button>
-                  )}
-                </div>
-                <button onClick={() => setShowSearch(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.45)', padding: 4 }}>
-                  Cancel
-                </button>
+        {activeTab === 'clusters' && (
+          <motion.div
+            className="cluster-banner"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            onClick={() => navigate('/clusters')}
+          >
+            <div style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.2)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 3 }}>
+                Split rent with Cluster 🔥
               </div>
-
-              {searchQuery.trim() && (
-                <motion.button
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onClick={handleSearch}
-                  style={{
-                    marginTop: 10, width: '100%',
-                    background: '#ff6b00', color: '#fff', border: 'none',
-                    borderRadius: 12, padding: '13px 0',
-                    fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: "'Outfit', sans-serif",
-                  }}
-                >
-                  Search rooms →
-                </motion.button>
-              )}
-            </motion.div>
-          </>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
+                Can't afford a room alone? Find a compatible roommate and split the cost. Lock in for just ₦5,000.
+              </div>
+            </div>
+            <div style={{ width: 36, height: 36, background: 'rgba(255,255,255,0.2)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ──────────── CATEGORY TABS ──────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center',
-        overflowX: 'auto', scrollbarWidth: 'none',
-        padding: '14px 18px 0', gap: 8,
-      }}>
+      {/* CATEGORY TABS */}
+      <div className="cat-tabs" style={{ marginBottom: activeTab === 'clusters' ? 0 : 28 }}>
         {CATEGORY_TABS.map(tab => (
           <button
-            key={tab}
-            onClick={() => tab === 'Filters' ? setShowFilter(true) : setActiveTab(tab)}
-            style={{
-              padding: '8px 16px', borderRadius: 100,
-              fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
-              cursor: 'pointer', border: 'none',
-              fontFamily: "'Outfit', sans-serif",
-              background:
-                tab === 'Filters'
-                  ? 'rgba(255,255,255,0.07)'
-                  : activeTab === tab
-                    ? '#ff6b00'
-                    : 'rgba(255,255,255,0.06)',
-              color:
-                tab === 'Filters'
-                  ? 'rgba(255,255,255,0.55)'
-                  : activeTab === tab
-                    ? '#fff'
-                    : 'rgba(255,255,255,0.55)',
-              transition: 'all 0.15s',
-              display: 'flex', alignItems: 'center', gap: 5,
-            }}
+            key={tab.id}
+            className={`cat-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
           >
-            {tab === 'Filters' && <FilterIcon />}
-            {tab}
+            {tab.icon}
+            {tab.label}
           </button>
         ))}
-      </div>
-
-      {/* ──────────── FILTER SIDE DRAWER ──────────── */}
-      <AnimatePresence>
-        {showFilter && (
-          <>
-            <div onClick={() => setShowFilter(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 50 }} />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 260 }}
-              style={{
-                position: 'fixed', top: 0, right: 0, bottom: 0,
-                width: '78%', maxWidth: 310, zIndex: 55,
-                background: '#141414',
-                borderLeft: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex', flexDirection: 'column',
-              }}
-            >
-              <div style={{
-                padding: '22px 18px 16px',
-                borderBottom: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <span style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: '#fff' }}>
-                  Filter
-                </span>
-                <button onClick={() => setShowFilter(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.45)' }}>
-                  <CloseIcon />
-                </button>
-              </div>
-
-              {/* Scrollable filter list */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-                {FILTER_OPTIONS.map(opt => (
-                  <div
-                    key={opt.key}
-                    className="filter-row"
-                    onClick={() => { navigate(`/search?filterBy=${opt.key}`); setShowFilter(false); }}
-                    style={{
-                      padding: '17px 18px',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      cursor: 'pointer', color: '#fff',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background 0.15s',
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 500 }}>{opt.label}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.35)' }}><ArrowRight /></span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ padding: 18, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-                <button
-                  onClick={() => setShowFilter(false)}
-                  style={{
-                    width: '100%', background: '#ff6b00', color: '#fff',
-                    border: 'none', borderRadius: 14, padding: '14px 0',
-                    fontSize: 15, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: "'Outfit', sans-serif",
-                  }}
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ──────────── LISTING ROWS (Netflix horizontal scroll) ──────────── */}
-      <div style={{ marginTop: 10 }}>
-        {visibleSections.map(section => (
-          <ListingRow
-            key={section.id}
-            sectionId={section.id}
-            label={section.label}
-            apiQuery={section.query}
-            navigate={navigate}
-          />
-        ))}
-      </div>
-
-      {/* ──────────── LANDLORD CTA ──────────── */}
-      <div style={{
-        margin: '16px 18px 0',
-        background: 'linear-gradient(135deg, rgba(255,107,0,0.13), rgba(255,107,0,0.04))',
-        border: '1px solid rgba(255,107,0,0.2)',
-        borderRadius: 18, padding: '18px 16px',
-        display: 'flex', alignItems: 'center', gap: 14,
-      }}>
-        <span style={{ fontSize: 28, flexShrink: 0 }}>🏡</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Fraunces', serif", fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 3 }}>
-            Are you a landlord?
-          </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-            List your property, reach thousands of students free
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/login')}
-          style={{
-            background: '#ff6b00', color: '#fff', border: 'none',
-            borderRadius: 100, padding: '9px 16px', fontSize: 13, fontWeight: 600,
-            fontFamily: "'Outfit', sans-serif", cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-        >
-          List Now
+        <button className="cat-tab" style={{ gap: 4 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
+          Filter
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
+      </div>
+
+      {/* LISTINGS */}
+      <div className="listings-section">
+        <div className="listings-header">
+          <h2 className="section-title">
+            {activeTab === 'clusters' ? 'Open Clusters' : activeTab === 'trending' ? 'Trending Now' : activeTab === 'on_campus' ? 'On Campus' : activeTab === 'off_campus' ? 'Off Campus' : 'Recent Listings'}
+          </h2>
+          <button className="see-all-btn" onClick={() => navigate('/search')}>
+            See all
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+
+        <div className="listings-grid">
+          {isLoading
+            ? [...Array(8)].map((_, i) => <div key={i} className="skeleton-card" />)
+            : data?.listings?.map((listing, i) => (
+                <motion.div
+                  key={listing.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.06 }}
+                >
+                  <ListingCard listing={listing} />
+                </motion.div>
+              ))}
+        </div>
+      </div>
+
+      {/* LANDLORD BAR */}
+      <div className="landlord-bar">
+        <div className="landlord-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff6b00" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div>
+          <div style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 15, fontWeight: 600, color: '#fff' }}>Are you a landlord?</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>Reach thousands of verified students near your property</div>
+        </div>
+        <button className="list-now-btn" onClick={() => navigate('/login')}>List Now</button>
       </div>
     </main>
   );
