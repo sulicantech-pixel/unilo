@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,700;0,900;1,700&display=swap');
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -11,35 +13,85 @@
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
     font-family: 'Outfit', sans-serif;
     background-color: #0a0a0a;
-    color: white;
+    color: #ffffff;
     min-height: 100dvh;
-    overflow-x: hidden;
   }
 
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  /* Safe area insets for iOS notch / bottom bar */
+  .safe-top    { padding-top:    env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
 
 @layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 16px);
+  /* Brand colour tokens — used across all components */
+  .bg-brand        { background-color: #ff6b00; }
+  .bg-brand-light  { background-color: #ff8533; }
+  .text-brand      { color: #ff6b00; }
+  .border-brand    { border-color: #ff6b00; }
+
+  /* Dark surface tokens */
+  .bg-navy         { background-color: #0a0a0a; }
+  .bg-navy-800     { background-color: #141414; }
+  .bg-surface      { background-color: #1a1a1a; }
+
+  /* Text tokens */
+  .text-cream      { color: #ffffff; }
+  .text-muted      { color: rgba(255,255,255,0.45); }
+
+  /* Font tokens */
+  .font-display    { font-family: 'Outfit', sans-serif; }
+  .font-body       { font-family: 'Outfit', sans-serif; }
+  .font-hero       { font-family: 'Fraunces', serif; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand text-white font-semibold px-6 py-3 rounded-2xl
+           transition-all duration-200 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary:hover { background-color: #ff8533; }
+
+  .btn-ghost {
+    @apply border border-white/20 text-white font-medium px-6 py-3
+           rounded-2xl transition-all duration-200 active:scale-95;
+  }
+  .btn-ghost:hover { background-color: rgba(255,255,255,0.08); }
+
+  /* Listing card shell */
+  .card {
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .input {
+    @apply bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white
+           placeholder:text-white/30 focus:outline-none
+           transition-colors w-full;
+    font-family: 'Outfit', sans-serif;
+  }
+  .input:focus { border-color: #ff6b00; }
+
+  .badge {
+    @apply text-xs font-medium px-2.5 py-1 rounded-full;
+    font-family: 'Outfit', sans-serif;
   }
 }
 
-.page-enter {
-  animation: fadeSlideUp 0.3s ease both;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,107,0,0.3); border-radius: 4px; }
+
+/* Page transition */
+.page-enter { animation: fadeSlideUp 0.3s ease both; }
 
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(10px); }
