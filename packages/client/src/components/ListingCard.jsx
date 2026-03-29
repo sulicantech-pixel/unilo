@@ -1,300 +1,191 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useAuthStore } from '../store/authStore';
 
-const TYPE_LABELS = {
-  self_contain:     'Self contain',
-  shared_room:      'Shared room',
-  boys_hostel:      'Boys hostel',
-  girls_hostel:     'Girls hostel',
-  room_and_parlour: 'Room & parlour',
-  flat:             'Flat',
-  bungalow:         'Bungalow',
-  duplex:           'Duplex',
-  hostel:           'Hostel',
-};
-
-// ── SVG Icons (Feather-style, no emoji, no icon lib) ─────────────────────────
 const HeartIcon = ({ filled }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24"
-    fill={filled ? '#ff6b00' : 'none'}
-    stroke={filled ? '#ff6b00' : '#fff'}
-    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-  </svg>
-);
-
-const ChevronLeft = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-    stroke="#111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6"/>
-  </svg>
-);
-
-const ChevronRight = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-    stroke="#111" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6"/>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? '#ff6b00' : 'none'}
+    stroke={filled ? '#ff6b00' : 'white'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
   </svg>
 );
 
 const StarIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="#fff" stroke="none">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff6b00" stroke="none">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatPrice(price) {
-  const n = Number(price);
-  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}m`;
-  if (n >= 1_000)     return `₦${(n / 1_000).toFixed(0)}k`;
-  return `₦${n.toLocaleString()}`;
-}
+const ClusterIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
 
-function formatDistance(metres) {
-  if (!metres) return null;
-  const m = Number(metres);
-  if (m < 200)  return 'On campus';
-  if (m < 800)  return `${m}m from gate`;
-  const mins = Math.round(m / 80);
-  return `${mins} min walk`;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-export default function ListingCard({ listing }) {
+export default function ListingCard({ listing, wishlistIds = [], onWishlistToggle }) {
   const navigate = useNavigate();
-  const [photoIdx, setPhotoIdx]     = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
-  const [dragStart, setDragStart]   = useState(null);
+  const { isAuthenticated } = useAuthStore();
+  const [imgIndex, setImgIndex] = useState(0);
+  const hoverTimer = useRef(null);
 
-  // Handle both API shapes:
-  // Old: listing.photos = [{url:...}, ...]
-  // New: listing.cover_photo = {url:...}, listing.photos = [...]
-  const photos = (() => {
-    if (listing.photos?.length > 0) return listing.photos.map(p => p.url ?? p);
-    if (listing.cover_photo?.url)   return [listing.cover_photo.url];
-    return ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80'];
-  })();
+  const {
+    id,
+    title,
+    price,
+    location,
+    university,
+    photos = [],
+    rating,
+    reviewCount,
+    isCluster,
+    clusterSpotsLeft,
+    distanceFromSchool,
+    accommodationType,
+    isNew,
+  } = listing;
 
-  const nextPhoto = (e) => { e.stopPropagation(); setPhotoIdx(i => (i + 1) % photos.length); };
-  const prevPhoto = (e) => { e.stopPropagation(); setPhotoIdx(i => (i - 1 + photos.length) % photos.length); };
+  const images = photos.length > 0 ? photos : ['https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80'];
+  const isWishlisted = wishlistIds.includes(id);
 
-  const handleDragStart = (e) => setDragStart(e.clientX ?? e.touches?.[0]?.clientX);
-  const handleDragEnd   = (e) => {
-    if (dragStart === null) return;
-    const end  = e.clientX ?? e.changedTouches?.[0]?.clientX;
-    const diff = dragStart - end;
-    if (Math.abs(diff) > 40) diff > 0 ? nextPhoto(e) : prevPhoto(e);
-    setDragStart(null);
+  const formatPrice = (p) => {
+    if (!p) return '—';
+    return '₦' + Number(p).toLocaleString('en-NG');
   };
 
-  const distLabel = formatDistance(listing.distance_from_school);
-  const typeLabel = TYPE_LABELS[listing.type] || listing.type;
-  const location  = [listing.address, listing.city].filter(Boolean).join(', ');
+  const handleMouseEnter = () => {
+    hoverTimer.current = Date.now();
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimer.current) {
+      const duration = Date.now() - hoverTimer.current;
+      hoverTimer.current = null;
+      // Fire analytics
+      fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventType: 'listing_hover', listingId: id, durationMs: duration }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleClick = () => {
+    fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'listing_click', listingId: id }),
+    }).catch(() => {});
+    navigate(`/listing/${id}`);
+  };
+
+  const handleWishlist = (e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) { navigate('/login'); return; }
+    onWishlistToggle?.(id);
+    fetch(`${import.meta.env.VITE_API_URL}/analytics/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventType: 'listing_wishlist', listingId: id, action: isWishlisted ? 'unsave' : 'save' }),
+    }).catch(() => {});
+  };
+
+  const cyclePhoto = (e, dir) => {
+    e.stopPropagation();
+    setImgIndex(i => (i + dir + images.length) % images.length);
+  };
 
   return (
-    <>
-      <style>{`
-        .ulc { cursor:pointer; background:transparent; border-radius:16px; overflow:hidden; }
+    <div
+      className="group cursor-pointer"
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Photo container */}
+      <div className="relative overflow-hidden rounded-2xl bg-[#1a1a1a]" style={{ paddingBottom: '66.67%' }}>
+        <img
+          src={images[imgIndex]}
+          alt={title}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[7000ms] ease-in-out group-hover:scale-110 group-hover:translate-x-[3%]"
+          loading="lazy"
+        />
 
-        /* ── 2:3 Airbnb photo ratio ── */
-        .ulc-photo-wrap {
-          position:relative; width:100%; padding-bottom:66.67%;
-          overflow:hidden; background:#1a1a1a; border-radius:14px;
-        }
-        .ulc-photo-inner { position:absolute; inset:0; }
+        {/* Dark gradient */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
-        /* ── Ken Burns on hover ── */
-        .ulc-photo {
-          width:100%; height:100%; object-fit:cover;
-          transform:scale(1) translateX(0);
-          transition:transform 7s ease;
-          user-select:none; pointer-events:none;
-        }
-        .ulc:hover .ulc-photo { transform:scale(1.1) translateX(3%); }
-
-        /* ── Photo nav arrows ── */
-        .ulc-arrow {
-          position:absolute; top:50%; transform:translateY(-50%);
-          width:26px; height:26px; background:rgba(255,255,255,0.94);
-          border:none; border-radius:50%; cursor:pointer;
-          display:flex; align-items:center; justify-content:center;
-          z-index:5; opacity:0; transition:opacity 0.18s;
-        }
-        .ulc-photo-wrap:hover .ulc-arrow { opacity:1; }
-        .ulc-arrow.prev { left:8px; }
-        .ulc-arrow.next { right:8px; }
-
-        /* ── Dots ── */
-        .ulc-dots {
-          position:absolute; bottom:9px; left:50%; transform:translateX(-50%);
-          display:flex; gap:4px; z-index:5;
-        }
-        .ulc-dot { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,0.45); transition:all 0.2s; }
-        .ulc-dot.on { background:#fff; width:14px; border-radius:3px; }
-
-        /* ── Wishlist ── */
-        .ulc-wish {
-          position:absolute; top:11px; right:11px; z-index:6;
-          width:32px; height:32px; border-radius:50%; border:none;
-          background:rgba(0,0,0,0.35); backdrop-filter:blur(6px);
-          display:flex; align-items:center; justify-content:center;
-          cursor:pointer; transition:transform 0.15s;
-        }
-        .ulc-wish:active { transform:scale(0.88); }
-
-        /* ── Cluster badge ── */
-        .ulc-cluster-badge {
-          position:absolute; top:11px; left:11px; z-index:6;
-          background:rgba(255,107,0,0.92); color:#fff;
-          font-family:'Outfit',sans-serif; font-size:10px; font-weight:700;
-          padding:3px 9px; border-radius:100px; letter-spacing:0.3px;
-        }
-
-        /* ── Bottom gradient ── */
-        .ulc-grad {
-          position:absolute; bottom:0; left:0; right:0; height:40%;
-          background:linear-gradient(to top,rgba(0,0,0,0.4),transparent);
-          pointer-events:none; z-index:2;
-        }
-
-        /* ── Info — Airbnb layout ── */
-        .ulc-info { padding:10px 1px 0; }
-
-        .ulc-row1 {
-          display:flex; align-items:center;
-          justify-content:space-between; gap:6px; margin-bottom:1px;
-        }
-
-        /* Line 1: type · city — bold, like Airbnb's "Apartment in Sea Point" */
-        .ulc-headline {
-          font-family:'Outfit',sans-serif;
-          font-size:13.5px; font-weight:600; color:#fff;
-          overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:1;
-        }
-
-        .ulc-rating {
-          display:flex; align-items:center; gap:3px;
-          font-family:'Outfit',sans-serif; font-size:12px;
-          font-weight:600; color:#fff; white-space:nowrap; flex-shrink:0;
-        }
-
-        /* Line 2: full address — muted */
-        .ulc-address {
-          font-family:'Outfit',sans-serif;
-          font-size:12px; color:rgba(255,255,255,0.4);
-          overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
-          margin-bottom:1px;
-        }
-
-        /* Line 3: distance — orange */
-        .ulc-dist {
-          font-family:'Outfit',sans-serif;
-          font-size:11.5px; color:rgba(255,107,0,0.82);
-          margin-bottom:3px;
-        }
-
-        /* Line 4: price — bold amount underlined like Airbnb */
-        .ulc-price-row {
-          display:flex; align-items:baseline; gap:3px; margin-top:2px;
-        }
-        .ulc-price {
-          font-family:'Outfit',sans-serif;
-          font-size:14px; font-weight:700; color:#fff;
-          text-decoration:underline; text-underline-offset:2px;
-          text-decoration-color:rgba(255,255,255,0.25);
-        }
-        .ulc-period {
-          font-family:'Outfit',sans-serif;
-          font-size:12px; color:rgba(255,255,255,0.38); font-weight:400;
-        }
-      `}</style>
-
-      <motion.article
-        className="ulc"
-        whileTap={{ scale: 0.97 }}
-        onClick={() => navigate(`/listing/${listing.id}`)}
-      >
-        {/* ── PHOTO ── */}
-        <div
-          className="ulc-photo-wrap"
-          onMouseDown={handleDragStart} onMouseUp={handleDragEnd}
-          onTouchStart={handleDragStart} onTouchEnd={handleDragEnd}
+        {/* Wishlist button */}
+        <button
+          onClick={handleWishlist}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors z-10"
+          aria-label="Save to wishlist"
         >
-          <div className="ulc-photo-inner">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={photoIdx}
-                src={photos[photoIdx]}
-                alt={listing.title}
-                className="ulc-photo"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                draggable={false}
-              />
-            </AnimatePresence>
-          </div>
+          <HeartIcon filled={isWishlisted} />
+        </button>
 
-          <div className="ulc-grad" />
-
-          {listing.is_cluster && (
-            <div className="ulc-cluster-badge">Cluster</div>
+        {/* Badges */}
+        <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+          {isNew && (
+            <span className="text-[10px] font-semibold bg-[#ff6b00] text-white px-2 py-0.5 rounded-full">New</span>
           )}
-
-          <button
-            className="ulc-wish"
-            onClick={e => { e.stopPropagation(); setWishlisted(w => !w); }}
-            aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
-          >
-            <HeartIcon filled={wishlisted} />
-          </button>
-
-          {photos.length > 1 && (
-            <>
-              <button className="ulc-arrow prev" onClick={prevPhoto} aria-label="Previous photo"><ChevronLeft /></button>
-              <button className="ulc-arrow next" onClick={nextPhoto} aria-label="Next photo"><ChevronRight /></button>
-              <div className="ulc-dots">
-                {photos.map((_, i) => (
-                  <div key={i} className={`ulc-dot${i === photoIdx ? ' on' : ''}`} />
-                ))}
-              </div>
-            </>
+          {isCluster && (
+            <span className="text-[10px] font-semibold bg-white/15 backdrop-blur-sm text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+              <ClusterIcon /> Cluster · {clusterSpotsLeft} spot{clusterSpotsLeft !== 1 ? 's' : ''} left
+            </span>
           )}
         </div>
 
-        {/* ── INFO — Airbnb style ── */}
-        <div className="ulc-info">
+        {/* Photo nav dots */}
+        {images.length > 1 && (
+          <>
+            <button onClick={(e) => cyclePhoto(e, -1)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs z-10">
+              ‹
+            </button>
+            <button onClick={(e) => cyclePhoto(e, 1)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs z-10">
+              ›
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+              {images.map((_, i) => (
+                <div key={i} className={`w-1 h-1 rounded-full transition-colors ${i === imgIndex ? 'bg-white' : 'bg-white/40'}`} />
+              ))}
+            </div>
+          </>
+        )}
 
-          {/* Line 1: "Self contain · Port Harcourt"  ★ 4.8 */}
-          <div className="ulc-row1">
-            <span className="ulc-headline">
-              {typeLabel} · {listing.city || 'Port Harcourt'}
-            </span>
-            {listing.rating && (
-              <span className="ulc-rating">
-                <StarIcon />
-                {Number(listing.rating).toFixed(1)}
-              </span>
+        {/* Distance pill — bottom left */}
+        {distanceFromSchool && (
+          <span className="absolute bottom-2 left-3 text-[10px] text-white bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            {distanceFromSchool} walk
+          </span>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="mt-2 px-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-medium truncate">{title}</p>
+            <p className="text-[#888] text-xs mt-0.5 truncate">{location || university}</p>
+            {accommodationType && (
+              <p className="text-[#555] text-xs mt-0.5">{accommodationType}</p>
             )}
           </div>
-
-          {/* Line 2: street address, muted */}
-          <div className="ulc-address">{location}</div>
-
-          {/* Line 3: distance, orange — only if set */}
-          {distLabel && <div className="ulc-dist">{distLabel}</div>}
-
-          {/* Line 4: ₦180k / year */}
-          <div className="ulc-price-row">
-            <span className="ulc-price">{formatPrice(listing.price)}</span>
-            <span className="ulc-period">/ year</span>
-          </div>
-
+          {rating && (
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              <StarIcon />
+              <span className="text-white text-xs font-medium">{rating}</span>
+              {reviewCount && <span className="text-[#555] text-xs">({reviewCount})</span>}
+            </div>
+          )}
         </div>
-      </motion.article>
-    </>
+        <p className="mt-1.5 text-white text-sm">
+          <span className="font-semibold text-[#ff6b00]">{formatPrice(price)}</span>
+          <span className="text-[#666] font-normal"> / year</span>
+        </p>
+      </div>
+    </div>
   );
 }
