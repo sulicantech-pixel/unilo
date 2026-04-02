@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ListingCard from '../components/ListingCard';
 
+// ----------------------------- CONSTANTS ---------------------------------
 const UNIVERSITIES = [
   { label: 'Any university', value: '' },
   { label: 'University of Lagos (UNILAG)', value: 'unilag' },
@@ -34,9 +35,10 @@ const CATEGORY_TABS = [
   { id: 'clusters', label: 'Clusters', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> },
 ];
 
-function FilterPanel({ filters, setFilters, onSearch, onClose, isMobile }) {
+// ----------------------------- FILTER PANEL -----------------------------
+function FilterPanel({ filters, setFilters, onSearch, isMobile }) {
   const [uniSearch, setUniSearch] = useState('');
-  const filtered = UNIVERSITIES.filter(u =>
+  const filteredUniversities = UNIVERSITIES.filter(u =>
     u.label.toLowerCase().includes(uniSearch.toLowerCase())
   );
 
@@ -78,19 +80,9 @@ function FilterPanel({ filters, setFilters, onSearch, onClose, isMobile }) {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 20,
-      padding: isMobile ? '8px 0 0' : '24px 0 0',
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: isMobile ? '8px 0 0' : '24px 0 0' }}>
       {isMobile && (
-        <div style={{
-          width: 40, height: 4,
-          background: 'rgba(255,255,255,0.2)',
-          borderRadius: 100,
-          margin: '0 auto 8px',
-        }} />
+        <div style={{ width: 40, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 100, margin: '0 auto 8px' }} />
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 16 }}>
@@ -110,12 +102,12 @@ function FilterPanel({ filters, setFilters, onSearch, onClose, isMobile }) {
                 background: '#1a2436', border: '1px solid rgba(255,255,255,0.12)',
                 borderRadius: 10, marginTop: 4, maxHeight: 200, overflowY: 'auto',
               }}>
-                {filtered.map(u => (
+                {filteredUniversities.map(u => (
                   <div key={u.value}
                     onClick={() => { setFilters(f => ({ ...f, university: u.value })); setUniSearch(''); }}
                     style={{ padding: '10px 14px', fontSize: 13, color: '#fff', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-                    onMouseEnter={e => e.target.style.background = 'rgba(255,107,0,0.15)'}
-                    onMouseLeave={e => e.target.style.background = 'transparent'}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,107,0,0.15)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >{u.label}</div>
                 ))}
               </div>
@@ -190,14 +182,24 @@ function FilterPanel({ filters, setFilters, onSearch, onClose, isMobile }) {
   );
 }
 
+// ----------------------------- MAIN COMPONENT ---------------------------
 export default function HomePage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [filters, setFilters] = useState({
     university: '', campus: '', accommodation: '',
     roomRegion: '', junction: '', distance: '', moveIn: '', price: '',
   });
+
+  // Hydration-safe mobile detection
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ['listings', 'featured'],
@@ -211,15 +213,8 @@ export default function HomePage() {
     setShowFilters(false);
   };
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-
   return (
-    <main style={{
-      fontFamily: "'DM Sans', sans-serif",
-      background: '#0D1B2A',
-      minHeight: '100vh',
-      paddingBottom: 100,
-    }}>
+    <main style={{ fontFamily: "'DM Sans', sans-serif", background: '#0D1B2A', minHeight: '100vh', paddingBottom: 100 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
         @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
@@ -327,7 +322,6 @@ export default function HomePage() {
           white-space: nowrap;
         }
 
-        /* Desktop filter dropdown */
         .filter-dropdown {
           background: rgba(13,27,42,0.98);
           border: 1px solid rgba(255,255,255,0.1);
@@ -344,7 +338,6 @@ export default function HomePage() {
           .filter-dropdown { max-width: 800px; }
         }
 
-        /* Category tabs */
         .cat-tabs {
           display: flex;
           gap: 6px;
@@ -378,7 +371,6 @@ export default function HomePage() {
         }
 
         .cat-tab:hover { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
-
         .cat-tab.active {
           background: #ff6b00;
           border-color: #ff6b00;
@@ -386,7 +378,6 @@ export default function HomePage() {
           font-weight: 600;
         }
 
-        /* Cluster banner */
         .cluster-banner {
           margin: 0 20px 28px;
           background: linear-gradient(135deg, #ff6b00 0%, #e55500 100%);
@@ -405,9 +396,7 @@ export default function HomePage() {
           .cluster-banner { margin: 0 48px 36px; }
         }
 
-        /* Listings grid */
         .listings-section { padding: 0 20px; }
-
         @media (min-width: 768px) { .listings-section { padding: 0 48px; } }
 
         .listings-header {
@@ -444,13 +433,8 @@ export default function HomePage() {
           gap: 16px;
         }
 
-        @media (min-width: 900px) {
-          .listings-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        @media (min-width: 1200px) {
-          .listings-grid { grid-template-columns: repeat(4, 1fr); }
-        }
+        @media (min-width: 900px) { .listings-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (min-width: 1200px) { .listings-grid { grid-template-columns: repeat(4, 1fr); } }
 
         .skeleton-card {
           background: rgba(255,255,255,0.04);
@@ -464,7 +448,6 @@ export default function HomePage() {
           50% { opacity: 0.4; }
         }
 
-        /* Mobile bottom sheet overlay */
         .sheet-overlay {
           position: fixed;
           inset: 0;
@@ -485,7 +468,6 @@ export default function HomePage() {
           overflow-y: auto;
         }
 
-        /* Landlord bar */
         .landlord-bar {
           margin: 36px 20px 0;
           background: rgba(255,255,255,0.04);
@@ -527,7 +509,6 @@ export default function HomePage() {
         }
 
         .list-now-btn:hover { background: #ff6b00; color: #fff; }
-
         select option { background: #0D1B2A; }
       `}</style>
 
@@ -535,7 +516,6 @@ export default function HomePage() {
       <section className="hero-section">
         <div className="hero-glow" />
         <div className="hero-glow-2" />
-
         <motion.div
           style={{ position: 'relative', zIndex: 1 }}
           initial={{ opacity: 0, y: 24 }}
@@ -546,22 +526,16 @@ export default function HomePage() {
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
             Nigeria's #1 Student Housing
           </div>
-
           <h1 className="hero-title">
             Find your room<br />
             near <span className="accent">your university.</span>
           </h1>
-
           <p className="hero-sub">
             Verified rooms · No broker fees · Split rent with Cluster
           </p>
 
-          {/* Search trigger button */}
           <div style={{ position: 'relative', maxWidth: 560 }}>
-            <button
-              className="search-trigger-btn"
-              onClick={() => setShowFilters(v => !v)}
-            >
+            <button className="search-trigger-btn" onClick={() => setShowFilters(v => !v)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               Search rooms, university, area…
               <span className="search-trigger-right" onClick={e => { e.stopPropagation(); setShowFilters(true); }}>
@@ -571,20 +545,18 @@ export default function HomePage() {
 
             {/* Desktop filter dropdown */}
             <AnimatePresence>
-              {showFilters && (
+              {showFilters && !isMobile && (
                 <motion.div
                   className="filter-dropdown"
                   initial={{ opacity: 0, y: -8, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -8, scale: 0.98 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
-                  style={{ display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'block' }}
                 >
                   <FilterPanel
                     filters={filters}
                     setFilters={setFilters}
                     onSearch={handleSearch}
-                    onClose={() => setShowFilters(false)}
                     isMobile={false}
                   />
                 </motion.div>
@@ -596,7 +568,7 @@ export default function HomePage() {
 
       {/* Mobile Bottom Sheet */}
       <AnimatePresence>
-        {showFilters && (
+        {showFilters && isMobile && (
           <>
             <motion.div
               className="sheet-overlay"
@@ -604,7 +576,6 @@ export default function HomePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowFilters(false)}
-              style={{ display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : 'block' }}
             />
             <motion.div
               className="sheet-panel"
@@ -612,13 +583,11 @@ export default function HomePage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              style={{ display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'none' : 'block' }}
             >
               <FilterPanel
                 filters={filters}
                 setFilters={setFilters}
                 onSearch={handleSearch}
-                onClose={() => setShowFilters(false)}
                 isMobile={true}
               />
             </motion.div>
@@ -666,11 +635,6 @@ export default function HomePage() {
             {tab.label}
           </button>
         ))}
-        <button className="cat-tab" style={{ gap: 4 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>
-          Filter
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
       </div>
 
       {/* LISTINGS */}
@@ -687,7 +651,7 @@ export default function HomePage() {
 
         <div className="listings-grid">
           {isLoading
-            ? [...Array(8)].map((_, i) => <div key={i} className="skeleton-card" />)
+            ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton-card" />)
             : data?.listings?.map((listing, i) => (
                 <motion.div
                   key={listing.id}
