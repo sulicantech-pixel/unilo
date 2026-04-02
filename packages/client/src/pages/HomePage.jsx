@@ -515,7 +515,7 @@ export default function HomePage() {
       <div className="listings-grid">
         {isLoading
           ? [...Array(4)].map((_, i) => <div key={i} className="skeleton" />)
-          : listings.map((listing, i) => (
+         : (data?.listings ?? data?.data ?? []).map((listing, i) => (
               <motion.div
                 key={listing.id}
                 initial={{ opacity: 0, y: 20 }}
