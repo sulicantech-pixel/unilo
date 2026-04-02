@@ -18,9 +18,13 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
 
-  const { data, isLoading } = useQuery({
+  // ── FIXED: added isError + proper retry/stale config ──────────────────────
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['listings', 'featured'],
     queryFn: () => api.get('/listings?limit=6').then((r) => r.data),
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 1000 * 60, // 1 minute
   });
 
   const handleSearch = (e) => {
@@ -31,8 +35,48 @@ export default function HomePage() {
     navigate(`/search?${params}`);
   };
 
-  // Safely extract listings regardless of API response shape
-  const listings = data?.listings ?? data?.data ?? [];
+  // ── Listings content — handles loading, error, empty, and success ──────────
+  const renderListings = () => {
+    if (isLoading) {
+      return [...Array(6)].map((_, i) => <div key={i} className="skeleton" />);
+    }
+
+    if (isError) {
+      return (
+        <div className="error-state">
+          <span className="error-icon">📡</span>
+          <p className="error-title">Couldn't load listings</p>
+          <p className="error-sub">The server might be waking up. Try again in a moment.</p>
+          <button className="retry-btn" onClick={() => refetch()}>
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    const listings = data?.listings;
+
+    if (!listings || listings.length === 0) {
+      return (
+        <div className="error-state">
+          <span className="error-icon">🏠</span>
+          <p className="error-title">No listings yet</p>
+          <p className="error-sub">Be the first to list a property on Unilo.</p>
+        </div>
+      );
+    }
+
+    return listings.map((listing, i) => (
+      <motion.div
+        key={listing.id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: i * 0.08 }}
+      >
+        <ListingCard listing={listing} />
+      </motion.div>
+    ));
+  };
 
   return (
     <main style={{ fontFamily: "'DM Sans', sans-serif", background: '#0a0a0a', minHeight: '100vh', paddingBottom: '100px' }}>
@@ -337,6 +381,56 @@ export default function HomePage() {
           50% { opacity: 0.4; }
         }
 
+        /* ── NEW: error/empty state ── */
+        .error-state {
+          grid-column: 1 / -1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 48px 20px;
+          text-align: center;
+          gap: 8px;
+        }
+
+        .error-icon {
+          font-size: 40px;
+          margin-bottom: 8px;
+        }
+
+        .error-title {
+          font-family: 'Syne', sans-serif;
+          font-size: 16px;
+          font-weight: 700;
+          color: rgba(255,255,255,0.8);
+          margin: 0;
+        }
+
+        .error-sub {
+          font-size: 13px;
+          color: rgba(255,255,255,0.4);
+          margin: 0;
+          max-width: 260px;
+        }
+
+        .retry-btn {
+          margin-top: 12px;
+          background: rgba(255,107,0,0.15);
+          border: 1px solid rgba(255,107,0,0.4);
+          color: #ff6b00;
+          padding: 10px 24px;
+          border-radius: 100px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: 'DM Sans', sans-serif;
+          transition: all 0.2s;
+        }
+
+        .retry-btn:hover {
+          background: rgba(255,107,0,0.25);
+        }
+
         .value-props {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -513,18 +607,7 @@ export default function HomePage() {
       </div>
 
       <div className="listings-grid">
-        {isLoading
-          ? [...Array(4)].map((_, i) => <div key={i} className="skeleton" />)
-         : (data?.listings ?? data?.data ?? []).map((listing, i) => (
-              <motion.div
-                key={listing.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-              >
-                <ListingCard listing={listing} />
-              </motion.div>
-            ))}
+        {renderListings()}
       </div>
 
       {/* VALUE PROPS */}
