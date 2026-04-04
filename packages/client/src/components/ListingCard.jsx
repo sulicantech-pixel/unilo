@@ -26,6 +26,9 @@ const DEMO_PHOTOS = [
 export default function ListingCard({ listing }) {
   const navigate = useNavigate();
   const [photoIndex, setPhotoIndex] = useState(0);
+
+  // Guard — if listing is undefined/null, render nothing
+  if (!listing) return null;
   const [isSaved, setIsSaved] = useState(false);
   const touchStartX = useRef(null);
 
