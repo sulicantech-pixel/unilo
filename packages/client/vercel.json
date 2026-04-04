@@ -1,6 +1,6 @@
 {
   "outputDirectory": "dist",
-  "buildCommand": "npm install --prefix ../.. && npx vite build",
+  "buildCommand": "npm install --prefix ../.. && node ../../node_modules/vite/bin/vite.js build",
   "installCommand": "echo skip",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
