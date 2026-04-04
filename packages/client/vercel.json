@@ -1,6 +1,6 @@
 {
-  "outputDirectory": "packages/client/dist",
-  "buildCommand": "cd packages/client && npm install && npm run build",
+  "outputDirectory": "dist",
+  "buildCommand": "npm install && npm run build",
   "installCommand": "echo skip",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
