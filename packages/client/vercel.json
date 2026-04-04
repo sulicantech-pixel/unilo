@@ -1,7 +1,8 @@
 {
+  "outputDirectory": "packages/client/dist",
+  "buildCommand": "cd packages/client && npm install && npm run build",
+  "installCommand": "echo skip",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "buildCommand": "npm install --prefix ../.. && node ../../node_modules/vite/bin/vite.js build",
-  "installCommand": "echo skip"
+  ]
 }
