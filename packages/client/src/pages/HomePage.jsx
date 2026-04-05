@@ -1,12 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ListingCard from '../components/ListingCard';
 
-// ── University + per-uni data ─────────────────────────────────────────────────
-
+// ── Universities ──────────────────────────────────────────────────────────────
 const UNIVERSITIES = [
   'University of Lagos (UNILAG)',
   'University of Port Harcourt (UNIPORT)',
@@ -53,12 +52,9 @@ const DEFAULT_UNI_DATA = {
   distances: ['On Campus', 'Within 5 mins walk', '5–10 mins walk', '10–20 mins walk', '20–30 mins walk', 'Above 30 mins walk'],
   prices: ['Under ₦100k/yr', '₦100k–₦200k/yr', '₦200k–₦400k/yr', '₦400k–₦600k/yr', '₦600k–₦1m/yr', 'Above ₦1m/yr'],
 };
-
-// You will expand this object per university as you gather real data
 const UNI_DATA = { default: DEFAULT_UNI_DATA };
 const getUniData = (uni) => UNI_DATA[uni] || UNI_DATA.default;
 
-// ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
   { id: 'all',        label: 'All',        apiParam: '' },
   { id: 'trending',   label: 'Trending',   apiParam: 'trending' },
@@ -67,7 +63,6 @@ const TABS = [
   { id: 'clusters',   label: 'Clusters',   apiParam: 'clusters' },
 ];
 
-// ── Filter options ────────────────────────────────────────────────────────────
 const FILTER_OPTIONS = [
   { id: 'near_school', label: 'Near School',   Icon: IconNear },
   { id: 'junction',    label: 'By Junction',   Icon: IconJunction },
@@ -77,7 +72,7 @@ const FILTER_OPTIONS = [
   { id: 'new',         label: 'New Deals',     Icon: IconNew },
 ];
 
-// ── Searchable picker (used in search modal) ──────────────────────────────────
+// ── Searchable picker ─────────────────────────────────────────────────────────
 function SearchPicker({ label, value, options, onChange, placeholder, zIndex = 10 }) {
   const [open, setOpen]   = useState(false);
   const [query, setQuery] = useState('');
@@ -100,27 +95,25 @@ function SearchPicker({ label, value, options, onChange, placeholder, zIndex = 1
   const clear      = (e)   => { e.stopPropagation(); onChange(''); };
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative', zIndex: open ? 50 + zIndex : zIndex }}>
-      {/* Trigger */}
+    <div ref={wrapRef} style={{ position: 'relative', zIndex: open ? 50 + zIndex : zIndex, marginBottom: 10 }}>
       <button onClick={openPicker} style={{
         width: '100%', background: '#1C1C1C',
         border: `1px solid ${open ? 'rgba(255,107,0,0.5)' : 'rgba(255,255,255,0.08)'}`,
         borderRadius: 12, padding: '13px 14px',
         textAlign: 'left', cursor: 'pointer', position: 'relative',
-        transition: 'border-color 0.15s',
+        transition: 'border-color 0.15s', display: 'block',
       }}>
-        <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3, fontFamily: 'DM Sans, sans-serif' }}>
+        <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.32)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3, fontFamily: 'DM Sans, sans-serif' }}>
           {label}
         </span>
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 500, color: value ? '#fff' : 'rgba(255,255,255,0.28)', fontFamily: 'DM Sans, sans-serif' }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 500, color: value ? '#fff' : 'rgba(255,255,255,0.26)', fontFamily: 'DM Sans, sans-serif' }}>
           {value || placeholder}
         </span>
         {value && (
-          <span onClick={clear} style={{ position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', fontSize: 14, cursor: 'pointer', lineHeight: 1 }}>✕</span>
+          <span onClick={clear} style={{ position: 'absolute', top: '50%', right: 12, transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.28)', fontSize: 13, cursor: 'pointer', lineHeight: 1 }}>✕</span>
         )}
       </button>
 
-      {/* Dropdown — renders ABOVE or below based on space */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -132,7 +125,7 @@ function SearchPicker({ label, value, options, onChange, placeholder, zIndex = 1
               position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
               background: '#1E1E1E', border: '1px solid rgba(255,255,255,0.12)',
               borderRadius: 12, overflow: 'hidden',
-              boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.85)',
             }}
           >
             <div style={{ padding: '8px 8px 0' }}>
@@ -169,28 +162,24 @@ function SearchPicker({ label, value, options, onChange, placeholder, zIndex = 1
   );
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const navigate = useNavigate();
 
-  // University selector state
   const [selectedUni, setSelectedUni] = useState(UNIVERSITIES[0]);
   const [uniOpen, setUniOpen]         = useState(false);
   const [uniQuery, setUniQuery]       = useState('');
   const uniRef      = useRef(null);
   const uniInputRef = useRef(null);
 
-  // Tabs
   const [activeTab, setActiveTab] = useState('all');
-  const tabRefs    = useRef({});
-  const tabBarRef  = useRef(null);
+  const tabRefs   = useRef({});
+  const tabBarRef = useRef(null);
 
-  // Filter dropdown
   const [showFilter, setShowFilter] = useState(false);
   const filterRef = useRef(null);
 
-  // Search modal
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearch, setShowSearch]   = useState(false);
   const [sUniversity, setSUniversity] = useState('');
   const [sCampus, setSCampus]         = useState('');
   const [sAccomm, setSAccomm]         = useState('');
@@ -207,7 +196,6 @@ export default function HomePage() {
     [uniQuery]
   );
 
-  // Listings query — passes tab param to backend
   const activeTabObj = TABS.find(t => t.id === activeTab);
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['listings', 'home', activeTab],
@@ -221,7 +209,6 @@ export default function HomePage() {
     staleTime: 1000 * 60,
   });
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const h = e => {
       if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilter(false);
@@ -231,15 +218,11 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Auto-scroll active tab into center view
   useEffect(() => {
     const el = tabRefs.current[activeTab];
     const bar = tabBarRef.current;
     if (!el || !bar) return;
-    const barW  = bar.offsetWidth;
-    const elL   = el.offsetLeft;
-    const elW   = el.offsetWidth;
-    bar.scrollTo({ left: elL - barW / 2 + elW / 2, behavior: 'smooth' });
+    bar.scrollTo({ left: el.offsetLeft - bar.offsetWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' });
   }, [activeTab]);
 
   const openUniPicker = () => {
@@ -259,167 +242,219 @@ export default function HomePage() {
     navigate(`/search?${p}`);
   };
 
-  const handleFilterSelect = (id) => {
-    setShowFilter(false);
-    navigate(`/search?filter=${id}`);
-  };
-
   const listings     = data?.listings ?? [];
   const shortUniName = selectedUni.includes('(') ? selectedUni.split('(')[0].trim() : selectedUni;
 
   return (
     <main style={{ minHeight: '100dvh', background: '#0D0D0D', fontFamily: "'DM Sans', sans-serif", paddingBottom: 96, overflowX: 'hidden' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600;1,9..144,700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0;}
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,600;1,9..144,700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* ── Fixed university bar ── */
-        .uni-bar {
-          position: fixed;
-          top: 0; left: 0; right: 0;
-          z-index: 80;
-          padding: max(14px, env(safe-area-inset-top)) 20px 12px;
-          pointer-events: none;
+        /* ─────────────────────────────────────────
+           HERO — image fills full viewport height.
+           All content anchors to bottom via flex-end.
+           The pill sits IMMEDIATELY above the headline
+           inside the same flex column — no gap.
+        ───────────────────────────────────────── */
+        .hero {
+          position: relative;
+          min-height: 100svh;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          overflow: hidden;
         }
-        .uni-pill-wrap { pointer-events: all; display: inline-block; position: relative; }
+
+        /* Background image + gradient.
+           Gradient is heavier at bottom so text
+           is readable without increasing padding. */
+        .hero-bg {
+          position: absolute; inset: 0; z-index: 0;
+          background:
+            linear-gradient(
+              to bottom,
+              rgba(13,13,13,0.05) 0%,
+              rgba(13,13,13,0.15) 35%,
+              rgba(13,13,13,0.72) 62%,
+              rgba(13,13,13,0.97) 80%,
+              rgba(13,13,13,1)    100%
+            ),
+            url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=1400&q=85')
+              center / cover no-repeat;
+        }
+
+        /* Single content block — pill + headline + sub + search.
+           All in normal flow, stacked with micro-gaps only. */
+        .hero-block {
+          position: relative; z-index: 2;
+          padding: 0 20px 28px;
+          display: flex;
+          flex-direction: column;
+          /* gap controls spacing between every child:
+             pill → headline → sub → search bar.
+             6px between pill and headline is intentional — tight but not overlapping. */
+          gap: 0;
+        }
+
+        /* ── University pill ── */
+        .uni-pill-wrap {
+          position: relative;
+          display: inline-block; /* shrinks to content width */
+          align-self: flex-start;
+          margin-bottom: 10px; /* 10px gap below pill, above headline */
+        }
         .uni-pill {
-          display: inline-flex; align-items: center; gap: 8px;
-          background: rgba(13,13,13,0.72);
-          border: 1px solid rgba(255,255,255,0.14);
+          display: inline-flex; align-items: center; gap: 7px;
+          background: rgba(13,13,13,0.65);
+          border: 1px solid rgba(255,255,255,0.15);
           backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-          border-radius: 100px; padding: 7px 13px 7px 7px;
-          cursor: pointer; transition: background .2s, border-color .2s;
+          border-radius: 100px;
+          padding: 6px 12px 6px 6px;
+          cursor: pointer;
+          transition: background .2s, border-color .2s;
           max-width: calc(100vw - 40px);
         }
         .uni-pill:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
         .uni-pill-icon {
-          width: 26px; height: 26px;
-          background: rgba(255,107,0,0.2); border-radius: 7px;
-          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+          width: 24px; height: 24px;
+          background: rgba(255,107,0,0.22); border-radius: 7px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
         }
         .uni-pill-text {
-          font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.01em;
+          font-size: 12px; font-weight: 700; color: #fff; letter-spacing: .01em;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          max-width: min(220px, 52vw);
+          max-width: min(210px, 52vw);
         }
-        .uni-pill-chevron { flex-shrink: 0; opacity: .5; margin-left: 1px; transition: opacity .15s; }
-        .uni-pill:hover .uni-pill-chevron { opacity: .8; }
+        .uni-pill-chevron { flex-shrink: 0; opacity: .5; }
 
-        /* Uni dropdown */
+        /* Uni dropdown — appears below pill */
         .uni-dropdown {
-          position: absolute; top: calc(100% + 8px); left: 0;
-          background: #191919; border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 18px; overflow: hidden; z-index: 200;
-          width: min(320px, calc(100vw - 40px));
-          box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+          position: absolute;
+          top: calc(100% + 6px); left: 0;
+          background: #191919;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 16px; overflow: hidden;
+          z-index: 300;
+          width: min(310px, calc(100vw - 40px));
+          box-shadow: 0 24px 60px rgba(0,0,0,0.85);
         }
         .uni-search-wrap { padding: 10px 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .uni-search-inner {
-          display: flex; align-items: center; gap: 8px;
-          background: rgba(255,255,255,0.07); border-radius: 9px; padding: 8px 11px; margin-bottom: 8px;
+          display: flex; align-items: center; gap: 7px;
+          background: rgba(255,255,255,0.07); border-radius: 8px;
+          padding: 8px 10px; margin-bottom: 8px;
         }
-        .uni-search-inner input { flex:1; background:transparent; border:none; outline:none; color:#fff; font-size:13px; font-family:'DM Sans',sans-serif; }
+        .uni-search-inner input {
+          flex: 1; background: transparent; border: none; outline: none;
+          color: #fff; font-size: 13px; font-family: 'DM Sans', sans-serif;
+        }
         .uni-search-inner input::placeholder { color: rgba(255,255,255,0.3); }
-        .uni-list { max-height: 240px; overflow-y: auto; padding: 6px 6px 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent; }
-        .uni-option { display: block; width: 100%; text-align: left; padding: 9px 12px; border: none; border-radius: 9px; background: transparent; color: rgba(255,255,255,0.72); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background .1s; }
+        .uni-list {
+          max-height: 230px; overflow-y: auto; padding: 6px 6px 8px;
+          scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
+        }
+        .uni-option {
+          display: block; width: 100%; text-align: left;
+          padding: 9px 12px; border: none; border-radius: 9px;
+          background: transparent; color: rgba(255,255,255,0.72);
+          font-size: 13px; font-weight: 500; cursor: pointer;
+          font-family: 'DM Sans', sans-serif; transition: background .1s;
+        }
         .uni-option:hover { background: rgba(255,255,255,0.06); color: #fff; }
         .uni-option.active { background: rgba(255,107,0,0.12); color: #ff6b00; font-weight: 700; }
-        .uni-count { font-size: 10px; color: rgba(255,255,255,0.25); padding: 0 14px 8px; display: block; }
+        .uni-count { font-size: 10px; color: rgba(255,255,255,0.22); padding: 0 12px 6px; display: block; }
 
-        /* ── Hero ── */
-        .hero-section {
-          position: relative;
-          min-height: 100svh;
-          display: flex; flex-direction: column; justify-content: flex-end;
-          overflow: hidden;
-        }
-        .hero-bg {
-          position: absolute; inset: 0;
-          background:
-            linear-gradient(180deg,
-              rgba(13,13,13,0.08) 0%,
-              rgba(13,13,13,0.2) 30%,
-              rgba(13,13,13,0.75) 65%,
-              rgba(13,13,13,0.98) 100%
-            ),
-            url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=1400&q=85') center/cover no-repeat;
-          z-index: 0;
-        }
-        .hero-content {
-          position: relative; z-index: 2;
-          padding: 0 20px 32px;
-        }
+        /* ── Headline — zero margin-top, sits flush under pill ── */
         .hero-title {
           font-family: 'Fraunces', serif;
-          font-size: clamp(2rem, 7.5vw, 3.6rem);
-          font-weight: 700; line-height: 1.1;
-          color: #fff; margin-bottom: 8px;
+          /* Tighter clamp so it never wraps past 2 lines on small phones */
+          font-size: clamp(1.85rem, 7vw, 3.2rem);
+          font-weight: 700;
+          line-height: 1.1;
+          color: #fff;
           letter-spacing: -0.025em;
+          /* 6px below headline before subtext */
+          margin-bottom: 6px;
         }
         .hero-title .orange { color: #ff6b00; font-style: italic; }
-        .hero-sub {
-          font-size: 13px; color: rgba(255,255,255,0.42); margin-bottom: 22px;
-          display: flex; align-items: center; gap: 0; flex-wrap: wrap;
-        }
-        .hero-sub-dot { margin: 0 7px; opacity: .35; }
 
-        /* Search trigger */
+        /* ── Subtext — immediately under headline ── */
+        .hero-sub {
+          font-size: 12px;
+          color: rgba(255,255,255,0.42);
+          display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+          /* 18px gap before search bar */
+          margin-bottom: 18px;
+        }
+        .dot { margin: 0 6px; opacity: .35; }
+
+        /* ── Search trigger bar ── */
         .search-trigger {
-          width: 100%; background: rgba(255,255,255,0.09);
-          border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
-          padding: 13px 12px 13px 16px;
-          display: flex; align-items: center; gap: 11px;
+          width: 100%;
+          background: rgba(255,255,255,0.09);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 14px;
+          padding: 12px 11px 12px 15px;
+          display: flex; align-items: center; gap: 10px;
           cursor: pointer; backdrop-filter: blur(10px);
           transition: background .15s, border-color .15s;
         }
         .search-trigger:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,107,0,0.4); }
-        .search-trigger-meta { flex: 1; text-align: left; min-width: 0; }
-        .search-trigger-label { display: block; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.32); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
-        .search-trigger-value { display: block; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .search-meta { flex: 1; text-align: left; min-width: 0; }
+        .search-label {
+          display: block; font-size: 9px; font-weight: 700;
+          color: rgba(255,255,255,0.3); text-transform: uppercase;
+          letter-spacing: .1em; margin-bottom: 2px;
+        }
+        .search-value {
+          display: block; font-size: 13px; font-weight: 600;
+          color: rgba(255,255,255,0.72);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         .search-go {
-          background: #ff6b00; border: none; border-radius: 11px;
-          width: 42px; height: 42px; flex-shrink: 0;
+          background: #ff6b00; border: none; border-radius: 10px;
+          width: 40px; height: 40px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
           cursor: pointer; transition: background .15s, transform .15s;
         }
         .search-go:hover { background: #e55f00; transform: scale(1.06); }
 
-        /* ── Tabs + filter bar ── */
+        /* ── Action bar (tabs + map + filter) ── */
         .action-bar {
           display: flex; align-items: center; gap: 6px;
-          padding: 16px 20px 0;
+          padding: 14px 20px 0;
           overflow-x: auto; scrollbar-width: none;
         }
         .action-bar::-webkit-scrollbar { display: none; }
 
         .tab-btn {
-          position: relative;
           display: flex; align-items: center; gap: 5px;
-          padding: 8px 15px; border-radius: 100px;
+          padding: 7px 14px; border-radius: 100px;
           border: 1px solid transparent;
           font-size: 13px; font-weight: 600;
           cursor: pointer; white-space: nowrap;
           font-family: 'DM Sans', sans-serif;
           flex-shrink: 0; outline: none;
-          transition: color .15s;
+          transition: color .15s, background .15s;
         }
         .tab-btn.active {
           background: #fff; color: #0D0D0D;
-          box-shadow: 0 2px 14px rgba(255,255,255,0.12);
+          box-shadow: 0 2px 12px rgba(255,255,255,0.1);
         }
         .tab-btn.inactive {
           background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.48);
           border-color: rgba(255,255,255,0.07);
         }
         .tab-btn.inactive:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.85); }
 
-        .bar-spacer { flex: 1; min-width: 8px; }
+        .bar-gap { flex: 1; min-width: 6px; }
 
-        /* Map button */
         .map-btn {
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 100px;
+          display: flex; align-items: center; gap: 5px;
+          padding: 7px 13px; border-radius: 100px;
           border: 1px solid rgba(255,107,0,0.4);
           background: rgba(255,107,0,0.1); color: #ff6b00;
           font-size: 13px; font-weight: 600; cursor: pointer;
@@ -428,148 +463,160 @@ export default function HomePage() {
         }
         .map-btn:hover { background: rgba(255,107,0,0.18); }
 
-        /* Filter button + dropdown */
         .filter-wrap { position: relative; flex-shrink: 0; }
         .filter-btn {
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 13px; border-radius: 100px;
+          display: flex; align-items: center; gap: 5px;
+          padding: 7px 12px; border-radius: 100px;
           border: 1px solid rgba(255,255,255,0.1);
-          background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.65);
+          background: rgba(255,255,255,0.05);
+          color: rgba(255,255,255,0.6);
           font-size: 13px; font-weight: 600; cursor: pointer;
           white-space: nowrap; font-family: 'DM Sans', sans-serif;
-          flex-shrink: 0; transition: background .15s, border-color .15s;
+          flex-shrink: 0; transition: all .15s;
         }
         .filter-btn:hover, .filter-btn.open {
           background: rgba(255,255,255,0.09); color: #fff;
           border-color: rgba(255,255,255,0.18);
         }
         .filter-dropdown {
-          position: absolute; top: calc(100% + 10px); right: 0;
+          position: absolute; top: calc(100% + 8px); right: 0;
           background: #191919; border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 16px; padding: 6px;
-          min-width: 200px; z-index: 100;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+          border-radius: 14px; padding: 6px;
+          min-width: 196px; z-index: 100;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.75);
         }
-        .filter-item {
-          display: flex; align-items: center; gap: 10px;
-          width: 100%; padding: 10px 12px; border: none;
+        .f-item {
+          display: flex; align-items: center; gap: 9px;
+          width: 100%; padding: 10px 11px; border: none;
           background: transparent; color: rgba(255,255,255,0.72);
-          font-size: 13px; font-weight: 500; border-radius: 10px;
+          font-size: 13px; font-weight: 500; border-radius: 9px;
           cursor: pointer; font-family: 'DM Sans', sans-serif;
           transition: background .1s; text-align: left;
         }
-        .filter-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-        .filter-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 4px 0; }
-        .filter-item-map { color: #ff6b00; }
-        .filter-item-map:hover { background: rgba(255,107,0,0.1) !important; }
+        .f-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .f-divider { height: 1px; background: rgba(255,255,255,0.07); margin: 4px 0; }
+        .f-item-map { color: #ff6b00; }
+        .f-item-map:hover { background: rgba(255,107,0,0.1) !important; }
 
         /* ── Listings ── */
-        .section-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 12px; }
-        .section-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: #fff; }
+        .sec-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px; }
+        .sec-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: #fff; }
         .see-all { font-size: 13px; font-weight: 600; color: #ff6b00; background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; }
-        .listings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 0 20px; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; padding: 0 20px; }
         .skel { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; height: 255px; animation: pulse 1.5s ease-in-out infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .empty-wrap { grid-column: 1/-1; text-align: center; padding: 56px 20px; }
-        .empty-emoji { font-size: 44px; margin-bottom: 12px; }
-        .empty-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 6px; }
-        .empty-body { font-size: 13px; color: rgba(255,255,255,0.32); }
-        .retry { margin-top: 16px; background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.35); color: #ff6b00; padding: 9px 22px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+        .empty { grid-column: 1/-1; text-align: center; padding: 56px 20px; }
+        .empty-emoji { font-size: 42px; margin-bottom: 10px; }
+        .empty-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: rgba(255,255,255,0.75); margin-bottom: 5px; }
+        .empty-body { font-size: 13px; color: rgba(255,255,255,0.3); }
+        .retry { margin-top: 14px; background: rgba(255,107,0,0.1); border: 1px solid rgba(255,107,0,0.35); color: #ff6b00; padding: 9px 20px; border-radius: 100px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
 
         /* ── Search modal ── */
-        .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); display: flex; align-items: flex-end; }
-        .modal { width: 100%; background: #131313; border-radius: 26px 26px 0 0; border: 1px solid rgba(255,255,255,0.08); border-bottom: none; max-height: 93vh; overflow-y: auto; scrollbar-width: none; }
+        .overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.82); backdrop-filter: blur(10px); display: flex; align-items: flex-end; }
+        .modal { width: 100%; background: #131313; border-radius: 24px 24px 0 0; border: 1px solid rgba(255,255,255,0.08); border-bottom: none; max-height: 93vh; overflow-y: auto; scrollbar-width: none; }
         .modal::-webkit-scrollbar { display: none; }
         .modal-body { padding: 0 18px 48px; }
-        .handle { width: 34px; height: 3.5px; background: rgba(255,255,255,0.14); border-radius: 100px; margin: 13px auto 18px; }
-        .modal-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 3px; }
-        .modal-hint { font-size: 12px; color: rgba(255,255,255,0.28); margin-bottom: 20px; }
-        .modal-section { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: .12em; margin: 16px 0 10px; }
+        .handle { width: 32px; height: 3px; background: rgba(255,255,255,0.14); border-radius: 100px; margin: 12px auto 16px; }
+        .modal-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .modal-hint { font-size: 11px; color: rgba(255,255,255,0.26); margin-bottom: 18px; }
+        .modal-sec { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.22); text-transform: uppercase; letter-spacing: .12em; margin: 14px 0 8px; }
         .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .two-col > div { margin-bottom: 0 !important; }
-        .plain-field { background: #1C1C1C; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 13px 14px; margin-bottom: 10px; transition: border-color .15s; }
-        .plain-field:hover { border-color: rgba(255,107,0,0.3); }
-        .plain-field-label { display: block; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
+        .plain-field { background: #1C1C1C; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px 13px; margin-bottom: 10px; }
+        .plain-label { display: block; font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.28); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
         .plain-field input { display: block; width: 100%; background: transparent; border: none; outline: none; font-size: 13px; font-weight: 500; color: #fff; font-family: 'DM Sans', sans-serif; }
         .plain-field input::placeholder { color: rgba(255,255,255,0.22); }
-        .submit-btn { width: 100%; background: #ff6b00; color: #fff; border: none; border-radius: 14px; padding: 16px; font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; transition: background .15s; }
-        .submit-btn:hover { background: #e55f00; }
+        .submit { width: 100%; background: #ff6b00; color: #fff; border: none; border-radius: 13px; padding: 15px; font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; transition: background .15s; }
+        .submit:hover { background: #e55f00; }
       `}</style>
 
-      {/* ── FIXED UNIVERSITY BAR ── */}
-      <div className="uni-bar">
-        <div className="uni-pill-wrap" ref={uniRef}>
-          <button className="uni-pill" onClick={openUniPicker}>
-            <span className="uni-pill-icon"><GridIcon size={13} /></span>
-            <span className="uni-pill-text">{selectedUni}</span>
-            <span className="uni-pill-chevron">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <polyline points={uniOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
-              </svg>
-            </span>
-          </button>
-
-          <AnimatePresence>
-            {uniOpen && (
-              <motion.div className="uni-dropdown"
-                initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                transition={{ duration: 0.13 }}
-              >
-                <div className="uni-search-wrap">
-                  <div className="uni-search-inner">
-                    <SrchIcon />
-                    <input ref={uniInputRef} value={uniQuery} onChange={e => setUniQuery(e.target.value)} placeholder="Search university…" />
-                  </div>
-                </div>
-                <span className="uni-count">{filteredUnis.length} universities</span>
-                <div className="uni-list">
-                  {filteredUnis.length === 0
-                    ? <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12, padding: '14px 0' }}>No results</p>
-                    : filteredUnis.map(u => (
-                      <button key={u} className={`uni-option ${u === selectedUni ? 'active' : ''}`}
-                        onClick={() => { setSelectedUni(u); setUniOpen(false); setUniQuery(''); }}>
-                        {u}
-                      </button>
-                    ))
-                  }
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* ── HERO (full-viewport, content anchored to bottom) ── */}
-      <section className="hero-section">
+      {/* ══════════════════════════════════════════
+          HERO
+          Everything is in ONE flex column anchored
+          to the bottom. No separate stacking contexts.
+          Pill → Headline → Sub → Search are siblings.
+      ══════════════════════════════════════════ */}
+      <section className="hero">
         <div className="hero-bg" />
-        <motion.div className="hero-content"
-          initial={{ opacity: 0, y: 24 }}
+
+        <motion.div
+          className="hero-block"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
+          {/* 1. University pill — inline-block, flex-start */}
+          <div className="uni-pill-wrap" ref={uniRef}>
+            <button className="uni-pill" onClick={openUniPicker}>
+              <span className="uni-pill-icon"><GridIcon size={12} /></span>
+              <span className="uni-pill-text">{selectedUni}</span>
+              <span className="uni-pill-chevron">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <polyline points={uniOpen ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
+                </svg>
+              </span>
+            </button>
+
+            <AnimatePresence>
+              {uniOpen && (
+                <motion.div className="uni-dropdown"
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.13 }}
+                >
+                  <div className="uni-search-wrap">
+                    <div className="uni-search-inner">
+                      <SrchIcon />
+                      <input ref={uniInputRef} value={uniQuery}
+                        onChange={e => setUniQuery(e.target.value)}
+                        placeholder="Search university…" />
+                    </div>
+                  </div>
+                  <span className="uni-count">{filteredUnis.length} universities</span>
+                  <div className="uni-list">
+                    {filteredUnis.length === 0
+                      ? <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 12, padding: '12px 0' }}>No results</p>
+                      : filteredUnis.map(u => (
+                        <button key={u} className={`uni-option ${u === selectedUni ? 'active' : ''}`}
+                          onClick={() => { setSelectedUni(u); setUniOpen(false); setUniQuery(''); }}>
+                          {u}
+                        </button>
+                      ))
+                    }
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* 2. Headline — 10px below pill, nothing more */}
           <h1 className="hero-title">
             Find your room<br />
             near <span className="orange">{shortUniName}</span>
           </h1>
+
+          {/* 3. Subtext — 6px below headline */}
           <p className="hero-sub">
             Verified rooms
-            <span className="hero-sub-dot">·</span>
+            <span className="dot">·</span>
             No broker fees
-            <span className="hero-sub-dot">·</span>
+            <span className="dot">·</span>
             Split rent with Cluster
           </p>
 
-          {/* Search trigger */}
+          {/* 4. Search bar — 18px below subtext */}
           <button className="search-trigger" onClick={() => setShowSearch(true)}>
-            <SrchIcon size={18} color="rgba(255,255,255,0.4)" />
-            <span className="search-trigger-meta">
-              <span className="search-trigger-label">Search rooms</span>
-              <span className="search-trigger-value">University · Campus · Accommodation…</span>
+            <SrchIcon size={17} color="rgba(255,255,255,0.38)" />
+            <span className="search-meta">
+              <span className="search-label">Search rooms</span>
+              <span className="search-value">University · Campus · Accommodation…</span>
             </span>
             <button className="search-go" onClick={e => { e.stopPropagation(); setShowSearch(true); }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
             </button>
           </button>
         </motion.div>
@@ -583,28 +630,25 @@ export default function HomePage() {
             ref={el => tabRefs.current[tab.id] = el}
             className={`tab-btn ${activeTab === tab.id ? 'active' : 'inactive'}`}
             onClick={() => setActiveTab(tab.id)}
-            whileTap={{ scale: 0.92 }}
+            whileTap={{ scale: 0.91 }}
           >
-            {tab.id === 'all' && <GridIcon size={11} color={activeTab === 'all' ? '#0D0D0D' : 'rgba(255,255,255,0.4)'} />}
+            {tab.id === 'all' && <GridIcon size={11} color={activeTab === 'all' ? '#0D0D0D' : 'rgba(255,255,255,0.38)'} />}
             {tab.label}
           </motion.button>
         ))}
 
-        <div className="bar-spacer" />
+        <div className="bar-gap" />
 
-        {/* Map — inline, right-aligned, orange pill */}
-        <motion.button className="map-btn" onClick={() => navigate('/map')} whileTap={{ scale: 0.92 }}>
-          <IconMap />
-          Map
+        <motion.button className="map-btn" onClick={() => navigate('/map')} whileTap={{ scale: 0.91 }}>
+          <IconMap />&nbsp;Map
         </motion.button>
 
-        {/* Filter */}
         <div className="filter-wrap" ref={filterRef}>
           <button className={`filter-btn ${showFilter ? 'open' : ''}`} onClick={() => setShowFilter(o => !o)}>
             <IconFilter />
             Filter
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-              style={{ transform: showFilter ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+              style={{ transform: showFilter ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
@@ -612,18 +656,20 @@ export default function HomePage() {
           <AnimatePresence>
             {showFilter && (
               <motion.div className="filter-dropdown"
-                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                initial={{ opacity: 0, y: -6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.13 }}
               >
                 {FILTER_OPTIONS.map(({ id, label, Icon }) => (
-                  <button key={id} className="filter-item" onClick={() => handleFilterSelect(id)}>
+                  <button key={id} className="f-item"
+                    onClick={() => { setShowFilter(false); navigate(`/search?filter=${id}`); }}>
                     <Icon />{label}
                   </button>
                 ))}
-                <div className="filter-divider" />
-                <button className="filter-item filter-item-map" onClick={() => { setShowFilter(false); navigate('/map'); }}>
+                <div className="f-divider" />
+                <button className="f-item f-item-map"
+                  onClick={() => { setShowFilter(false); navigate('/map'); }}>
                   <IconMap color="#ff6b00" />Map View
                 </button>
               </motion.div>
@@ -633,42 +679,39 @@ export default function HomePage() {
       </div>
 
       {/* ── LISTINGS ── */}
-      <div className="section-header">
-        <h2 className="section-title">
-          {activeTab === 'all' && 'All Rooms'}
-          {activeTab === 'trending' && '🔥 Trending'}
-          {activeTab === 'on_campus' && 'On Campus'}
+      <div className="sec-header">
+        <h2 className="sec-title">
+          {activeTab === 'all'        && 'All Rooms'}
+          {activeTab === 'trending'   && '🔥 Trending'}
+          {activeTab === 'on_campus'  && 'On Campus'}
           {activeTab === 'off_campus' && 'Off Campus'}
-          {activeTab === 'clusters' && '🤝 Clusters'}
+          {activeTab === 'clusters'   && '🤝 Clusters'}
         </h2>
         <button className="see-all" onClick={() => navigate('/search')}>See all →</button>
       </div>
 
-      <div className="listings-grid">
+      <div className="grid">
         {isLoading && [...Array(6)].map((_, i) => <div key={i} className="skel" />)}
-
         {isError && (
-          <div className="empty-wrap">
+          <div className="empty">
             <div className="empty-emoji">📡</div>
             <p className="empty-title">Couldn't load rooms</p>
-            <p className="empty-body">Server may be starting up. This takes ~15 seconds.</p>
+            <p className="empty-body">Server may be starting up — takes ~15s.</p>
             <button className="retry" onClick={() => refetch()}>Try again</button>
           </div>
         )}
-
         {!isLoading && !isError && listings.length === 0 && (
-          <div className="empty-wrap">
+          <div className="empty">
             <div className="empty-emoji">🏠</div>
             <p className="empty-title">No listings yet</p>
             <p className="empty-body">Be the first to list a property on Unilo.</p>
           </div>
         )}
-
         {!isLoading && !isError && listings.map((listing, i) => (
           <motion.div key={listing.id}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: Math.min(i * 0.06, 0.35) }}
+            transition={{ delay: Math.min(i * 0.06, 0.32) }}
           >
             <ListingCard listing={listing} />
           </motion.div>
@@ -691,41 +734,37 @@ export default function HomePage() {
                 <p className="modal-title">Search Rooms</p>
                 <p className="modal-hint">Choose your university first — options update automatically</p>
 
-                {/* Location section */}
-                <p className="modal-section">📍 Location</p>
-                <div style={{ marginBottom: 10 }}>
+                <p className="modal-sec">📍 Location</p>
+                <div>
                   <SearchPicker label="University" value={sUniversity} options={UNIVERSITIES} zIndex={40}
                     onChange={v => { setSUniversity(v); setSCampus(''); setSRegion(''); setSJunction(''); }}
                     placeholder="Any university" />
                 </div>
                 <div className="two-col">
-                  <div><SearchPicker label="Campus" value={sCampus} options={uniData.campuses} zIndex={30} onChange={setSCampus} placeholder="Any campus" /></div>
-                  <div><SearchPicker label="Room Region" value={sRegion} options={uniData.regions} zIndex={30} onChange={setSRegion} placeholder="Any region" /></div>
+                  <div><SearchPicker label="Campus"      value={sCampus}  options={uniData.campuses}  zIndex={30} onChange={setSCampus}  placeholder="Any campus" /></div>
+                  <div><SearchPicker label="Room Region"  value={sRegion}  options={uniData.regions}   zIndex={30} onChange={setSRegion}  placeholder="Any region" /></div>
                 </div>
-                <div style={{ marginBottom: 10, marginTop: 10 }}>
+                <div>
                   <SearchPicker label="Junction" value={sJunction} options={uniData.junctions} zIndex={20} onChange={setSJunction} placeholder="Any junction" />
                 </div>
 
-                {/* Room details section */}
-                <p className="modal-section">🏠 Room Details</p>
-                <div style={{ marginBottom: 10 }}>
+                <p className="modal-sec">🏠 Room Details</p>
+                <div>
                   <SearchPicker label="Accommodation Type" value={sAccomm} options={uniData.accommodations} zIndex={15} onChange={setSAccomm} placeholder="Any accommodation" />
                 </div>
                 <div className="two-col">
-                  <div><SearchPicker label="Distance" value={sDistance} options={uniData.distances} zIndex={10} onChange={setSDistance} placeholder="Any" /></div>
-                  <div><SearchPicker label="Price / Year" value={sPrice} options={uniData.prices} zIndex={10} onChange={setSPrice} placeholder="Any" /></div>
+                  <div><SearchPicker label="Distance"    value={sDistance} options={uniData.distances} zIndex={10} onChange={setSDistance} placeholder="Any" /></div>
+                  <div><SearchPicker label="Price / Year" value={sPrice}   options={uniData.prices}    zIndex={10} onChange={setSPrice}    placeholder="Any" /></div>
                 </div>
 
-                {/* When section */}
-                <p className="modal-section" style={{ marginTop: 16 }}>📅 Move-in</p>
+                <p className="modal-sec" style={{ marginTop: 14 }}>📅 Move-in</p>
                 <div className="plain-field">
-                  <span className="plain-field-label">Move-in Date</span>
+                  <span className="plain-label">Move-in Date</span>
                   <input type="date" value={sMoveIn} onChange={e => setSMoveIn(e.target.value)} style={{ colorScheme: 'dark' }} />
                 </div>
 
-                <button className="submit-btn" onClick={handleSearch}>
-                  <SrchIcon size={17} color="white" />
-                  Search Rooms
+                <button className="submit" onClick={handleSearch}>
+                  <SrchIcon size={16} color="white" />Search Rooms
                 </button>
               </div>
             </motion.div>
@@ -736,8 +775,7 @@ export default function HomePage() {
   );
 }
 
-// ── Icon components ───────────────────────────────────────────────────────────
-
+// ── Icons ─────────────────────────────────────────────────────────────────────
 function GridIcon({ size = 14, color = '#ff6b00' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -755,7 +793,7 @@ function SrchIcon({ size = 13, color = 'rgba(255,255,255,0.35)' }) {
 }
 function IconMap({ color = '#ff6b00' }) {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
       <line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>
     </svg>
@@ -763,7 +801,7 @@ function IconMap({ color = '#ff6b00' }) {
 }
 function IconFilter() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
       <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
     </svg>
   );
