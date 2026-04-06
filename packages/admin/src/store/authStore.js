@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '../lib/api';
 
+const ALLOWED_ROLES = ['head_admin', 'user_admin', 'analyst'];
+
 export const useAdminAuth = create(
   persist(
     (set, get) => ({
@@ -11,8 +13,7 @@ export const useAdminAuth = create(
 
       login: async (email, password) => {
         const { data } = await api.post('/auth/login', { email, password });
-        const allowed = ['head_admin', 'user_admin'];
-        if (!allowed.includes(data.user.role)) {
+        if (!ALLOWED_ROLES.includes(data.user.role)) {
           throw new Error('Access denied. Admin accounts only.');
         }
         api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
