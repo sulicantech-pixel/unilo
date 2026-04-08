@@ -19,7 +19,7 @@ export default function CreateListingPage() {
   });
   const [photos, setPhotos] = useState([]);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: details, 2: photos, 3: done
+  const [step, setStep] = useState(1);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
   const toggleAmenity = (a) =>
@@ -28,17 +28,13 @@ export default function CreateListingPage() {
       amenities: f.amenities.includes(a) ? f.amenities.filter((x) => x !== a) : [...f.amenities, a],
     }));
 
-  // Step 1: Create listing
   const createListing = useMutation({
     mutationFn: () => api.post('/listings', { ...form, price: parseFloat(form.price) }),
     onSuccess: async ({ data }) => {
-      // Step 2: Upload photos if any
       if (photos.length > 0) {
         const fd = new FormData();
         photos.forEach((p) => fd.append('photos', p));
-        await api.post(`/upload/photos/${data.id}`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post(`/upload/photos/${data.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       }
       qc.invalidateQueries(['my-listings']);
       setStep(3);
@@ -46,9 +42,7 @@ export default function CreateListingPage() {
     onError: (err) => setError(err.response?.data?.error || 'Failed to create listing'),
   });
 
-  const handlePhotoChange = (e) => {
-    setPhotos(Array.from(e.target.files).slice(0, 10));
-  };
+  const handlePhotoChange = (e) => setPhotos(Array.from(e.target.files).slice(0, 10));
 
   if (step === 3) {
     return (
@@ -58,7 +52,11 @@ export default function CreateListingPage() {
         <p className="text-muted mb-6">It's been saved as a draft. Submit it for review when ready.</p>
         <div className="flex gap-3">
           <button onClick={() => navigate('/my-listings')} className="btn-primary">View my listings</button>
-          <button onClick={() => { setStep(1); setForm({ title:'',description:'',price:'',price_period:'annually',address:'',city:'',state:'',type:'self_contain',bedrooms:1,bathrooms:1,amenities:[],youtube_url:'',whatsapp_number:'',instagram_url:'' }); setPhotos([]); }} className="btn-ghost">
+          <button onClick={() => {
+            setStep(1);
+            setForm({ title:'',description:'',price:'',price_period:'annually',address:'',city:'',state:'',type:'self_contain',bedrooms:1,bathrooms:1,amenities:[],youtube_url:'',whatsapp_number:'',instagram_url:'' });
+            setPhotos([]);
+          }} className="btn-ghost">
             Add another
           </button>
         </div>
@@ -72,14 +70,12 @@ export default function CreateListingPage() {
       <p className="text-muted text-sm mb-6">Fill in the details. Save as draft and submit when ready.</p>
 
       <div className="space-y-5">
-        {/* Title */}
         <div>
           <label className="text-xs text-muted block mb-1.5">Listing title *</label>
           <input className="input" placeholder="e.g. Cozy Self Contain near UniPort" value={form.title}
             onChange={(e) => set('title', e.target.value)} />
         </div>
 
-        {/* Type + Beds + Baths */}
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs text-muted block mb-1.5">Type *</label>
@@ -99,7 +95,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Price */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-muted block mb-1.5">Rent (₦) *</label>
@@ -115,7 +110,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Address */}
         <div>
           <label className="text-xs text-muted block mb-1.5">Street address *</label>
           <input className="input" placeholder="12 University Road" value={form.address}
@@ -134,7 +128,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Amenities */}
         <div>
           <label className="text-xs text-muted block mb-2">Amenities</label>
           <div className="flex flex-wrap gap-2">
@@ -149,7 +142,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* YouTube */}
         <div>
           <label className="text-xs text-muted block mb-1.5">🎥 YouTube Tour URL</label>
           <input className="input" placeholder="https://youtu.be/..." value={form.youtube_url}
@@ -157,14 +149,12 @@ export default function CreateListingPage() {
           <p className="text-muted text-xs mt-1">Paste your YouTube link — we'll embed it automatically</p>
         </div>
 
-        {/* WhatsApp */}
         <div>
           <label className="text-xs text-muted block mb-1.5">💬 WhatsApp number</label>
           <input className="input" placeholder="+2348012345678" value={form.whatsapp_number}
             onChange={(e) => set('whatsapp_number', e.target.value)} />
         </div>
 
-        {/* Photos */}
         <div>
           <label className="text-xs text-muted block mb-1.5">Photos (up to 10)</label>
           <input type="file" multiple accept="image/*" onChange={handlePhotoChange}
@@ -174,7 +164,6 @@ export default function CreateListingPage() {
           )}
         </div>
 
-        {/* Description */}
         <div>
           <label className="text-xs text-muted block mb-1.5">Description</label>
           <textarea className="input min-h-[100px] resize-none" placeholder="Describe the property…"
