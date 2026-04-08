@@ -27,7 +27,7 @@ export default function AllListingsPage() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('created');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [viewMode, setViewMode] = useState('table'); // table | cards
+  const [viewMode, setViewMode] = useState('table');
 
   const { data, isLoading } = useQuery({
     queryKey: ['all-listings', status],
@@ -36,10 +36,7 @@ export default function AllListingsPage() {
 
   const remove = useMutation({
     mutationFn: (id) => api.delete(`/admin/listings/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries(['all-listings']);
-      setDeleteConfirm(null);
-    },
+    onSuccess: () => { qc.invalidateQueries(['all-listings']); setDeleteConfirm(null); },
   });
 
   const approve = useMutation({
@@ -64,11 +61,10 @@ export default function AllListingsPage() {
       return 0;
     });
 
-  // Summary stats
   const stats = {
-    total: listings.length,
-    approved: listings.filter((l) => l.status === 'approved').length,
-    pending: listings.filter((l) => l.status === 'pending').length,
+    total:      listings.length,
+    approved:   listings.filter((l) => l.status === 'approved').length,
+    pending:    listings.filter((l) => l.status === 'pending').length,
     totalViews: listings.reduce((a, l) => a + (l.view_count || 0), 0),
   };
 
@@ -85,9 +81,9 @@ export default function AllListingsPage() {
       {/* Quick stats */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Total', value: stats.total, color: 'text-cream' },
-          { label: 'Live', value: stats.approved, color: 'text-success' },
-          { label: 'Pending', value: stats.pending, color: 'text-warning' },
+          { label: 'Total',       value: stats.total,                      color: 'text-cream' },
+          { label: 'Live',        value: stats.approved,                   color: 'text-success' },
+          { label: 'Pending',     value: stats.pending,                    color: 'text-warning' },
           { label: 'Total Views', value: stats.totalViews.toLocaleString(), color: 'text-brand' },
         ].map((s) => (
           <div key={s.label} className="card p-3">
@@ -99,7 +95,6 @@ export default function AllListingsPage() {
 
       {/* Controls */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <input
             className="input pl-9 text-sm"
@@ -112,7 +107,6 @@ export default function AllListingsPage() {
           </svg>
         </div>
 
-        {/* Status filter */}
         <select className="input w-36 text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           <option value="approved">Approved</option>
@@ -121,7 +115,6 @@ export default function AllListingsPage() {
           <option value="draft">Draft</option>
         </select>
 
-        {/* Sort */}
         <select className="input w-36 text-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
           <option value="created">Newest first</option>
           <option value="views">Most viewed</option>
@@ -129,17 +122,16 @@ export default function AllListingsPage() {
           <option value="conv">Best conversion</option>
         </select>
 
-        {/* View toggle */}
         <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 ml-auto">
           <button
             onClick={() => setViewMode('table')}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${viewMode === 'table' ? 'bg-brand text-navy font-medium' : 'text-muted hover:text-cream'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${viewMode === 'table' ? 'bg-brand text-white font-medium' : 'text-muted hover:text-cream'}`}
           >
             Table
           </button>
           <button
             onClick={() => setViewMode('cards')}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${viewMode === 'cards' ? 'bg-brand text-navy font-medium' : 'text-muted hover:text-cream'}`}
+            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${viewMode === 'cards' ? 'bg-brand text-white font-medium' : 'text-muted hover:text-cream'}`}
           >
             Cards
           </button>
@@ -199,17 +191,11 @@ export default function AllListingsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3 justify-end">
                         {l.status === 'pending' && (
-                          <button
-                            onClick={() => approve.mutate(l.id)}
-                            className="text-success text-xs hover:underline"
-                          >
+                          <button onClick={() => approve.mutate(l.id)} className="text-success text-xs hover:underline">
                             Approve
                           </button>
                         )}
-                        <button
-                          onClick={() => setDeleteConfirm(l)}
-                          className="text-danger text-xs hover:underline"
-                        >
+                        <button onClick={() => setDeleteConfirm(l)} className="text-danger text-xs hover:underline">
                           Delete
                         </button>
                       </div>
@@ -224,7 +210,6 @@ export default function AllListingsPage() {
           )}
         </div>
       ) : (
-        // Cards view
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {listings.map((l) => (
             <div key={l.id} className="card overflow-hidden">
@@ -244,23 +229,15 @@ export default function AllListingsPage() {
                   <span>👁 {l.view_count || 0}</span>
                   <span>❤️ {l.save_count || 0}</span>
                   <span>💬 {l.contact_count || 0}</span>
-                  <span className="ml-auto">
-                    <ConvBadge views={l.view_count} saves={l.save_count} />
-                  </span>
+                  <span className="ml-auto"><ConvBadge views={l.view_count} saves={l.save_count} /></span>
                 </div>
                 <div className="flex gap-2 mt-3 pt-3 border-t border-white/8">
                   {l.status === 'pending' && (
-                    <button
-                      onClick={() => approve.mutate(l.id)}
-                      className="btn-primary text-xs py-1.5 flex-1"
-                    >
+                    <button onClick={() => approve.mutate(l.id)} className="btn-primary text-xs py-1.5 flex-1">
                       ✓ Approve
                     </button>
                   )}
-                  <button
-                    onClick={() => setDeleteConfirm(l)}
-                    className="btn-danger text-xs py-1.5 flex-1"
-                  >
+                  <button onClick={() => setDeleteConfirm(l)} className="btn-danger text-xs py-1.5 flex-1">
                     Delete
                   </button>
                 </div>
@@ -270,7 +247,7 @@ export default function AllListingsPage() {
         </div>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-sm">
@@ -278,16 +255,10 @@ export default function AllListingsPage() {
             <p className="text-muted text-sm mb-1">"{deleteConfirm.title}"</p>
             <p className="text-danger text-xs mb-5">This cannot be undone. All views, saves, and data will be lost.</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => remove.mutate(deleteConfirm.id)}
-                disabled={remove.isPending}
-                className="btn-danger flex-1"
-              >
+              <button onClick={() => remove.mutate(deleteConfirm.id)} disabled={remove.isPending} className="btn-danger flex-1">
                 {remove.isPending ? 'Deleting…' : 'Yes, delete'}
               </button>
-              <button onClick={() => setDeleteConfirm(null)} className="btn-ghost">
-                Cancel
-              </button>
+              <button onClick={() => setDeleteConfirm(null)} className="btn-ghost">Cancel</button>
             </div>
           </div>
         </div>
