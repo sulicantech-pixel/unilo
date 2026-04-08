@@ -6,6 +6,22 @@ const api = axios.create({
   timeout: 15000,
 });
 
+// Request interceptor — attach JWT token
+api.interceptors.request.use(
+  (config) => {
+    const auth = localStorage.getItem('unilo-admin-auth');
+    if (auth) {
+      const { token } = JSON.parse(auth);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (err) => Promise.reject(err)
+);
+
+// Response interceptor — handle 401
 api.interceptors.response.use(
   (res) => res,
   (err) => {
