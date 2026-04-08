@@ -43,10 +43,12 @@ export default function QuickListModal({ isOpen, onClose }) {
         ...form,
         price: parseFloat(form.price),
       }),
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log('✅ Listing created:', response.data);
       setStep(3); // Success screen
     },
     onError: (err) => {
+      console.error('❌ Error creating listing:', err.response?.data || err.message);
       setError(err.response?.data?.error || 'Failed to submit listing');
     },
   });
