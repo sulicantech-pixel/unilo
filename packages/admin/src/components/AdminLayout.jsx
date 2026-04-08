@@ -12,7 +12,6 @@ const HEAD_NAV = [
   { to: '/analytics',  icon: '📈', label: 'Analytics' },
 ];
 
-// Analyst sees everything except destructive actions — same pages, restricted in-page
 const ANALYST_NAV = [
   { to: '/dashboard',  icon: '⬡', label: 'Intelligence' },
   { to: '/listings',   icon: '🏠', label: 'All Listings' },
@@ -41,7 +40,6 @@ export default function AdminLayout() {
 
   const nav = isHeadAdmin ? HEAD_NAV : isAnalyst ? ANALYST_NAV : LANDLORD_NAV;
 
-  // Live pending count — shown in sidebar badge
   const { data: pendingData } = useQuery({
     queryKey: ['pending-count'],
     queryFn: () => api.get('/admin/pending').then((r) => r.data),
