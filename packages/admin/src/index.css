@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,7 +11,7 @@
 }
 
 @layer components {
-  .btn-primary { @apply bg-brand text-navy font-display font-semibold px-5 py-2.5 rounded-xl transition-all hover:bg-brand-light active:scale-95 disabled:opacity-50; }
+  .btn-primary { @apply bg-brand text-white font-display font-semibold px-5 py-2.5 rounded-xl transition-all hover:bg-brand-light active:scale-95 disabled:opacity-50; }
   .btn-danger  { @apply bg-danger/10 text-danger border border-danger/30 font-display font-semibold px-5 py-2.5 rounded-xl hover:bg-danger/20 transition-all; }
   .btn-ghost   { @apply border border-white/20 text-cream px-5 py-2.5 rounded-xl hover:bg-white/5 transition-all; }
   .card        { @apply bg-navy-800 border border-white/10 rounded-2xl; }
