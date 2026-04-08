@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import BottomNav from './components/BottomNav';
@@ -17,11 +17,20 @@ export default function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [showQuickList, setShowQuickList] = useState(false);
 
+  useEffect(() => {
+    const handleOpenQuickList = () => {
+      setShowQuickList(true);
+    };
+
+    window.addEventListener('openQuickList', handleOpenQuickList);
+    return () => window.removeEventListener('openQuickList', handleOpenQuickList);
+  }, []);
+
   return (
     <div className="min-h-dvh flex flex-col">
       <AnimatePresence mode="wait">
         <Routes>
-          <Route path="/"            element={<HomePage onOpenQuickList={() => setShowQuickList(true)} />} />
+          <Route path="/"            element={<HomePage />} />
           <Route path="/search"      element={<SearchPage />} />
           <Route path="/listing/:id" element={<ListingPage />} />
           <Route path="/map"         element={<MapPage />} />
@@ -35,7 +44,7 @@ export default function App() {
       {/* Mobile bottom nav — always visible */}
       <BottomNav onOpenQuickList={() => setShowQuickList(true)} />
 
-      {/* Quick List Modal — accessible from anywhere */}
+      {/* Quick List Modal */}
       <QuickListModal isOpen={showQuickList} onClose={() => setShowQuickList(false)} />
     </div>
   );
