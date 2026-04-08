@@ -1,3 +1,12 @@
+const router = require('express').Router();
+const { Listing, User, Transaction, Photo } = require('../models');
+const { authenticate, requireRole } = require('../middleware/auth');
+const { QueryTypes } = require('sequelize');
+
+// All admin routes require head_admin
+router.use(authenticate, requireRole('head_admin'));
+
+// ... [rest of the code above]
 {
   "universities": [
     { "name": "University of Lagos", "student_count": 45, "listing_count": 12 },
