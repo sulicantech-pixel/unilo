@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import api from '../lib/api';
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
 const fmtPrice = (v, period) =>
   new Intl.NumberFormat('en-NG', {
     style: 'currency', currency: 'NGN', maximumFractionDigits: 0,
@@ -19,7 +18,6 @@ const STATUS_STYLES = {
   rejected: 'bg-danger/15 text-danger border-danger/20',
 };
 
-// ── Quality Score ─────────────────────────────────────────────────────────────
 function computeQuality(listing) {
   const photoCount = listing.photos?.length || 0;
   return Math.min(100, Math.round(
@@ -50,7 +48,6 @@ function QualityRing({ score }) {
   );
 }
 
-// ── Competitive Rank Explanation ──────────────────────────────────────────────
 function CompetitiveRank({ listing, quality }) {
   const issues = [];
   const photoCount = listing.photos?.length || 0;
@@ -85,7 +82,6 @@ function CompetitiveRank({ listing, quality }) {
   );
 }
 
-// ── Edit Panel ────────────────────────────────────────────────────────────────
 function EditPanel({ listing, onClose, onSave, saving }) {
   const [form, setForm] = useState({
     title: listing.title || '',
@@ -117,15 +113,11 @@ function EditPanel({ listing, onClose, onSave, saving }) {
           <h2 className="font-display font-semibold text-cream">Edit Listing</h2>
           <button onClick={onClose} className="text-muted hover:text-cream text-xl leading-none">✕</button>
         </div>
-
         <div className="p-5 space-y-4">
-          {/* Title */}
           <div>
             <label className="text-xs text-muted block mb-1.5">Title</label>
             <input className="input" value={form.title} onChange={(e) => set('title', e.target.value)} />
           </div>
-
-          {/* Type / Beds / Baths */}
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-muted block mb-1.5">Type</label>
@@ -142,8 +134,6 @@ function EditPanel({ listing, onClose, onSave, saving }) {
               <input className="input" type="number" min="1" max="10" value={form.bathrooms} onChange={(e) => set('bathrooms', parseInt(e.target.value))} />
             </div>
           </div>
-
-          {/* Price */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs text-muted block mb-1.5">Rent (₦)</label>
@@ -157,8 +147,6 @@ function EditPanel({ listing, onClose, onSave, saving }) {
               </select>
             </div>
           </div>
-
-          {/* Address */}
           <div>
             <label className="text-xs text-muted block mb-1.5">Street address</label>
             <input className="input" value={form.address} onChange={(e) => set('address', e.target.value)} />
@@ -173,8 +161,6 @@ function EditPanel({ listing, onClose, onSave, saving }) {
               <input className="input" value={form.state} onChange={(e) => set('state', e.target.value)} />
             </div>
           </div>
-
-          {/* WhatsApp + YouTube */}
           <div>
             <label className="text-xs text-muted block mb-1.5">💬 WhatsApp number</label>
             <input className="input" placeholder="+2348012345678" value={form.whatsapp_number} onChange={(e) => set('whatsapp_number', e.target.value)} />
@@ -183,8 +169,6 @@ function EditPanel({ listing, onClose, onSave, saving }) {
             <label className="text-xs text-muted block mb-1.5">🎥 YouTube tour URL</label>
             <input className="input" placeholder="https://youtu.be/…" value={form.youtube_url} onChange={(e) => set('youtube_url', e.target.value)} />
           </div>
-
-          {/* Amenities */}
           <div>
             <label className="text-xs text-muted block mb-2">Amenities</label>
             <div className="flex flex-wrap gap-2">
@@ -198,15 +182,12 @@ function EditPanel({ listing, onClose, onSave, saving }) {
               ))}
             </div>
           </div>
-
-          {/* Description */}
           <div>
             <label className="text-xs text-muted block mb-1.5">Description</label>
             <textarea className="input min-h-[100px] resize-none" value={form.description} onChange={(e) => set('description', e.target.value)} />
             <p className="text-muted text-[10px] mt-1">{form.description.length} chars (120+ recommended)</p>
           </div>
         </div>
-
         <div className="sticky bottom-0 bg-navy-800 border-t border-white/10 px-5 py-4 flex gap-3">
           <button onClick={() => onSave(form)} disabled={saving} className="btn-primary flex-1">
             {saving ? 'Saving…' : 'Save changes'}
@@ -218,7 +199,6 @@ function EditPanel({ listing, onClose, onSave, saving }) {
   );
 }
 
-// ── Photo Upload Panel ─────────────────────────────────────────────────────────
 function PhotoUploadPanel({ listing, onClose, onUpload, uploading }) {
   const [files, setFiles] = useState([]);
   return (
@@ -243,11 +223,7 @@ function PhotoUploadPanel({ listing, onClose, onUpload, uploading }) {
           </div>
         )}
         <div className="flex gap-3">
-          <button
-            onClick={() => onUpload(files)}
-            disabled={files.length === 0 || uploading}
-            className="btn-primary flex-1"
-          >
+          <button onClick={() => onUpload(files)} disabled={files.length === 0 || uploading} className="btn-primary flex-1">
             {uploading ? 'Uploading…' : `Upload ${files.length || 0} photo${files.length !== 1 ? 's' : ''}`}
           </button>
           <button onClick={onClose} className="btn-ghost">Cancel</button>
@@ -257,7 +233,6 @@ function PhotoUploadPanel({ listing, onClose, onUpload, uploading }) {
   );
 }
 
-// ── Listing Card ──────────────────────────────────────────────────────────────
 function ListingCard({ listing }) {
   const qc = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
@@ -275,9 +250,7 @@ function ListingCard({ listing }) {
     mutationFn: async (files) => {
       const fd = new FormData();
       files.forEach((f) => fd.append('photos', f));
-      return api.post(`/upload/photos/${listing.id}`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      return api.post(`/upload/photos/${listing.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
     onSuccess: () => { qc.invalidateQueries(['my-listings']); setShowPhotos(false); },
   });
@@ -292,7 +265,6 @@ function ListingCard({ listing }) {
     onSuccess: () => qc.invalidateQueries(['my-listings']),
   });
 
-  // Re-request review: patch status back to draft then submit
   const requestReReview = useMutation({
     mutationFn: () => api.post(`/listings/${listing.id}/submit`),
     onSuccess: () => qc.invalidateQueries(['my-listings']),
@@ -305,9 +277,7 @@ function ListingCard({ listing }) {
   return (
     <>
       <div className="card overflow-hidden">
-        {/* Main row */}
         <div className="flex gap-4 p-4">
-          {/* Thumbnail */}
           <div className="w-24 h-20 rounded-xl overflow-hidden bg-white/5 shrink-0 relative">
             {cover
               ? <img src={cover} className="w-full h-full object-cover" alt={listing.title} />
@@ -320,7 +290,6 @@ function ListingCard({ listing }) {
             )}
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 justify-between">
               <div className="min-w-0">
@@ -330,7 +299,6 @@ function ListingCard({ listing }) {
               <span className={`badge text-[10px] border shrink-0 ${STATUS_STYLES[listing.status]}`}>{listing.status}</span>
             </div>
 
-            {/* Metrics */}
             <div className="flex items-center gap-3 mt-2.5 flex-wrap text-xs text-muted">
               <span>👁 <span className="text-cream">{listing.view_count || 0}</span> views</span>
               <span>❤️ <span className="text-cream">{listing.save_count || 0}</span> saves</span>
@@ -338,7 +306,6 @@ function ListingCard({ listing }) {
               <span>🔄 <span className={`font-medium ${parseFloat(convRate) >= 20 ? 'text-success' : 'text-warning'}`}>{convRate}%</span> save rate</span>
             </div>
 
-            {/* Rejection reason */}
             {listing.status === 'rejected' && listing.rejection_reason && (
               <div className="mt-2 p-2 rounded-lg bg-danger/8 border border-danger/15">
                 <p className="text-danger text-xs"><strong>Rejected:</strong> {listing.rejection_reason}</p>
@@ -346,62 +313,42 @@ function ListingCard({ listing }) {
             )}
           </div>
 
-          {/* Quality ring */}
           <div className="shrink-0">
             <QualityRing score={quality} />
           </div>
         </div>
 
-        {/* Expanded section */}
         {expanded && (
           <div className="border-t border-white/8 p-4 bg-white/2 space-y-3">
             <CompetitiveRank listing={listing} quality={quality} />
-
-            {/* Photo count callout */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/8">
               <div>
                 <p className="text-cream text-xs font-medium">{listing.photos?.length || 0} photos uploaded</p>
                 <p className="text-muted text-[10px]">Listings with 5+ photos get 40% more views</p>
               </div>
-              <button onClick={() => setShowPhotos(true)} className="btn-ghost text-xs py-1.5 px-3">
-                + Add photos
-              </button>
+              <button onClick={() => setShowPhotos(true)} className="btn-ghost text-xs py-1.5 px-3">+ Add photos</button>
             </div>
           </div>
         )}
 
-        {/* Action bar */}
         <div className="border-t border-white/8 px-4 py-2.5 flex items-center gap-2 flex-wrap bg-white/1">
-          {/* Edit — available for draft, rejected, even approved */}
-          <button onClick={() => setShowEdit(true)} className="btn-ghost text-xs py-1.5 px-3">
-            ✏️ Edit
-          </button>
+          <button onClick={() => setShowEdit(true)} className="btn-ghost text-xs py-1.5 px-3">✏️ Edit</button>
 
           {listing.status === 'draft' && (
-            <button
-              onClick={() => submitForReview.mutate()}
-              disabled={submitForReview.isPending}
-              className="btn-primary text-xs py-1.5 px-4"
-            >
+            <button onClick={() => submitForReview.mutate()} disabled={submitForReview.isPending} className="btn-primary text-xs py-1.5 px-4">
               {submitForReview.isPending ? 'Submitting…' : 'Submit for review'}
             </button>
           )}
 
           {listing.status === 'rejected' && (
-            <button
-              onClick={() => requestReReview.mutate()}
-              disabled={requestReReview.isPending}
-              className="btn-primary text-xs py-1.5 px-4"
-            >
+            <button onClick={() => requestReReview.mutate()} disabled={requestReReview.isPending} className="btn-primary text-xs py-1.5 px-4">
               {requestReReview.isPending ? 'Requesting…' : '↺ Request re-review'}
             </button>
           )}
 
           {listing.status === 'approved' && (
             <>
-              <button onClick={() => setShowPhotos(true)} className="btn-ghost text-xs py-1.5 px-3">
-                📷 Photos
-              </button>
+              <button onClick={() => setShowPhotos(true)} className="btn-ghost text-xs py-1.5 px-3">📷 Photos</button>
               <button
                 onClick={() => toggleVacancy.mutate()}
                 disabled={toggleVacancy.isPending}
@@ -416,36 +363,18 @@ function ListingCard({ listing }) {
             </>
           )}
 
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="ml-auto text-muted text-[10px] hover:text-cream transition-colors"
-          >
+          <button onClick={() => setExpanded((v) => !v)} className="ml-auto text-muted text-[10px] hover:text-cream transition-colors">
             {expanded ? '▲ Less' : '▼ Performance & rank'}
           </button>
         </div>
       </div>
 
-      {showEdit && (
-        <EditPanel
-          listing={listing}
-          onClose={() => setShowEdit(false)}
-          onSave={updateListing.mutate}
-          saving={updateListing.isPending}
-        />
-      )}
-      {showPhotos && (
-        <PhotoUploadPanel
-          listing={listing}
-          onClose={() => setShowPhotos(false)}
-          onUpload={uploadPhotos.mutate}
-          uploading={uploadPhotos.isPending}
-        />
-      )}
+      {showEdit && <EditPanel listing={listing} onClose={() => setShowEdit(false)} onSave={updateListing.mutate} saving={updateListing.isPending} />}
+      {showPhotos && <PhotoUploadPanel listing={listing} onClose={() => setShowPhotos(false)} onUpload={uploadPhotos.mutate} uploading={uploadPhotos.isPending} />}
     </>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function MyListingsPage() {
   const [filter, setFilter] = useState('all');
 
@@ -463,7 +392,6 @@ export default function MyListingsPage() {
 
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display font-bold text-2xl text-cream">My Listings</h1>
@@ -472,12 +400,11 @@ export default function MyListingsPage() {
         <Link to="/listing/new" className="btn-primary text-sm">+ Add Listing</Link>
       </div>
 
-      {/* Summary */}
       {(listings?.length || 0) > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: 'Total Views', value: totalViews.toLocaleString(), icon: '👁', color: 'text-muted' },
-            { label: 'Total Saves', value: totalSaves.toLocaleString(), icon: '❤️', color: 'text-gold' },
+            { label: 'Total Views',    value: totalViews.toLocaleString(),    icon: '👁',  color: 'text-muted' },
+            { label: 'Total Saves',    value: totalSaves.toLocaleString(),    icon: '❤️', color: 'text-gold' },
             { label: 'Total Contacts', value: totalContacts.toLocaleString(), icon: '💬', color: 'text-brand' },
           ].map((s) => (
             <div key={s.label} className="card p-4 flex items-center gap-3">
@@ -491,7 +418,6 @@ export default function MyListingsPage() {
         </div>
       )}
 
-      {/* Filters */}
       {(listings?.length || 0) > 0 && (
         <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 mb-5 w-fit">
           {['all', 'approved', 'pending', 'draft', 'rejected'].map((s) => {
@@ -501,7 +427,7 @@ export default function MyListingsPage() {
                 key={s}
                 onClick={() => setFilter(s)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                  filter === s ? 'bg-brand text-navy' : 'text-muted hover:text-cream'
+                  filter === s ? 'bg-brand text-white' : 'text-muted hover:text-cream'
                 }`}
               >
                 {s} {count > 0 && <span className="opacity-70 ml-1">{count}</span>}
@@ -511,7 +437,6 @@ export default function MyListingsPage() {
         </div>
       )}
 
-      {/* Listings */}
       {isLoading ? (
         <div className="space-y-4">{[...Array(3)].map((_, i) => <div key={i} className="card h-36 animate-pulse" />)}</div>
       ) : (listings?.length || 0) === 0 ? (
