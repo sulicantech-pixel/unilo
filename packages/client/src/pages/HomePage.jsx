@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 import ListingCard from '../components/ListingCard';
-import QuickListModal from '../components/QuickListModal';
 
 const CITIES = ['Port Harcourt', 'Lagos', 'Ibadan', 'Abuja', 'Enugu', 'Benin City', 'Warri', 'Owerri'];
 
@@ -18,7 +17,6 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
-  const [showQuickList, setShowQuickList] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['listings', 'featured'],
@@ -31,6 +29,10 @@ export default function HomePage() {
     if (search) params.set('search', search);
     if (city) params.set('city', city);
     navigate(`/search?${params}`);
+  };
+
+  const openQuickList = () => {
+    window.dispatchEvent(new CustomEvent('openQuickList'));
   };
 
   return (
@@ -548,13 +550,10 @@ export default function HomePage() {
           <div className="trust-title">Are you a landlord?</div>
           <div className="trust-sub">List your property and reach thousands of students</div>
         </div>
-        <button className="trust-btn" onClick={() => setShowQuickList(true)}>
+        <button className="trust-btn" onClick={openQuickList}>
           List Now
         </button>
       </div>
-
-      {/* Quick List Modal */}
-      <QuickListModal isOpen={showQuickList} onClose={() => setShowQuickList(false)} />
     </main>
   );
 }
