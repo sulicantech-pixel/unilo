@@ -10,8 +10,7 @@ const NAV = [
 export default function BottomNav({ onOpenQuickList }) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-navy/95 backdrop-blur border-t border-white/10 safe-bottom">
-      <div className="flex items-stretch">
-        {/* Navigation items */}
+      <div className="flex relative">
         {NAV.map(({ to, icon, label }) => (
           <NavLink
             key={to}
@@ -28,11 +27,11 @@ export default function BottomNav({ onOpenQuickList }) {
           </NavLink>
         ))}
 
-        {/* Floating "+" button for Quick List */}
+        {/* Floating + button - only visual addition */}
         <button
           onClick={onOpenQuickList}
-          className="absolute bottom-20 right-6 w-14 h-14 rounded-full bg-brand text-navy font-bold text-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-200 flex items-center justify-center"
-          title="List your property"
+          className="absolute bottom-20 right-6 w-14 h-14 rounded-full bg-brand text-navy font-bold text-2xl shadow-lg hover:shadow-xl hover:scale-110 transition-all"
+          title="List property"
         >
           ＋
         </button>
