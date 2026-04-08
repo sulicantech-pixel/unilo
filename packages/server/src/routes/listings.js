@@ -42,7 +42,6 @@ router.get('/', optionalAuth, async (req, res) => {
           model: Photo,
           as: 'photos',
           required: false,
-          // Fetch all photos — we pick cover or first in the response
           separate: false,
         },
         {
@@ -60,8 +59,6 @@ router.get('/', optionalAuth, async (req, res) => {
       distinct: true,
     });
 
-    // Normalise: attach a single `cover_photo` field so the frontend
-    // always has a photo to show — cover first, otherwise first photo.
     const listings = rows.map((listing) => {
       const data = listing.toJSON();
       const photos = data.photos || [];
@@ -69,7 +66,6 @@ router.get('/', optionalAuth, async (req, res) => {
       return { ...data, cover_photo: cover };
     });
 
-    // Log search analytics
     if (search || city) {
       await AnalyticsEvent.create({
         event_type: 'search',
@@ -80,7 +76,7 @@ router.get('/', optionalAuth, async (req, res) => {
         utm_medium,
         utm_campaign,
         device_type: detectDevice(req.headers['user-agent']),
-      }).catch(() => {}); // fire-and-forget
+      }).catch(() => {});
     }
 
     res.json({
@@ -112,10 +108,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
 
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
 
-    // Increment view count
     await listing.increment('view_count');
 
-    // Log analytics
     await AnalyticsEvent.create({
       event_type: 'listing_view',
       listing_id: listing.id,
@@ -134,7 +128,79 @@ router.get('/:id', optionalAuth, async (req, res) => {
   }
 });
 
-// ── POST /api/listings ─── Landlord creates listing ───────────────────────────
+// ── POST /api/listings/quick ─── Public quick listing (no auth required) ──────
+router.post('/quick', async (req, res) => {
+  try {
+    const {
+      title, description, price, price_period,
+      address, city, state, latitude, longitude,
+      type, bedrooms, bathrooms, amenities,
+      youtube_url, whatsapp_number, instagram_url,
+      contact_name, contact_email, contact_phone,
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !price || !address || !city || !type || !contact_name || !contact_email) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Get or create the "Quick List" system user
+    let quickListUser = await User.findOne({
+      where: { email: 'quicklist@unilo.local' },
+    });
+
+    if (!quickListUser) {
+      quickListUser = await User.create({
+        email: 'quicklist@unilo.local',
+        password_hash: 'system-user-no-login',
+        first_name: 'Quick',
+        last_name: 'List',
+        role: 'user_admin',
+        is_host: true,
+        user_type: 'non_student',
+        business_name: 'Quick List Submissions',
+      });
+    }
+
+    // Create listing in pending status (goes straight to your approval queue)
+    const listing = await Listing.create({
+      title,
+      description,
+      price,
+      price_period,
+      address,
+      city,
+      state,
+      latitude,
+      longitude,
+      type,
+      bedrooms: bedrooms || 1,
+      bathrooms: bathrooms || 1,
+      amenities: amenities || [],
+      youtube_url,
+      whatsapp_number,
+      instagram_url,
+      landlord_id: quickListUser.id,
+      status: 'pending', // Straight to your approval queue
+    });
+
+    // Store contact info in listing metadata (or in a separate table if you build that)
+    // For now, we'll add it to the response so you can see it
+    const response = listing.toJSON();
+    response.quick_list_contact = {
+      name: contact_name,
+      email: contact_email,
+      phone: contact_phone,
+    };
+
+    res.status(201).json(response);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create listing' });
+  }
+});
+
+// ── POST /api/listings ─── Authenticated landlord creates listing ──────────────
 router.post('/', authenticate, requireRole('user_admin', 'head_admin'), async (req, res) => {
   try {
     const {
