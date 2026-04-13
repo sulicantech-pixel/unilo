@@ -1,35 +1,48 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import api from '../lib/api';
+import { PASSIONS, PRIORITY_LEVELS } from '../data/passions';
+import { useAuthStore } from '../store/authStore';
 
-const TYPES = ['self_contain', 'room_and_parlour', 'flat', 'bungalow', 'duplex', 'hostel'];
+const ROOM_TYPES = ['self_contain', 'room_and_parlour', 'flat', 'bungalow', 'duplex', 'hostel'];
+const AMENITIES = ['wifi', 'generator', 'water', 'security', 'parking', 'kitchen', 'furnished', 'air_conditioning', 'cctv'];
+const UNIVERSITIES = ['University of Lagos', 'Covenant University', 'OAU Ile-Ife', 'UNIPORT', 'UNIZIK'];
+const CAMPUSES = { 'University of Lagos': ['Main Campus', 'Medical Campus', 'Law Campus'] };
 
 export default function QuickListModal({ isOpen, onClose }) {
-  const [step, setStep] = useState(1); // 1: basic info, 2: contact
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  const [listingType, setListingType] = useState(null);
+  const [step, setStep] = useState(1);
+  const scrollContainerRef = useRef(null);
+
   const [form, setForm] = useState({
-    // Basic property info
     title: '',
     type: 'self_contain',
     bedrooms: 1,
     bathrooms: 1,
     price: '',
     price_period: 'annually',
-    address: '',
-    city: '',
-    state: '',
-    description: '',
-    amenities: [],
-    whatsapp_number: '',
+    open_for_clusters: false,
+    university: '',
+    campus: '',
+    region: '',
+    map_location: '',
     youtube_url: '',
-    // Contact info
+    amenities: [],
+    photos: [],
     contact_name: '',
     contact_email: '',
     contact_phone: '',
   });
 
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const toggleAmenity = (a) =>
     setForm((f) => ({
@@ -37,339 +50,467 @@ export default function QuickListModal({ isOpen, onClose }) {
       amenities: f.amenities.includes(a) ? f.amenities.filter((x) => x !== a) : [...f.amenities, a],
     }));
 
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files).slice(0, 20);
+    setForm((f) => ({ ...f, photos: files }));
+  };
+
   const createListing = useMutation({
-    mutationFn: () =>
-      api.post('/listings/quick', {
-        ...form,
-        price: parseFloat(form.price),
-      }),
-    onSuccess: (response) => {
-      console.log('✅ Listing created:', response.data);
-      setStep(3); // Success screen
+    mutationFn: async () => {
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, val]) => {
+        if (key === 'photos') {
+          val.forEach((p) => formData.append('photos', p));
+        } else if (key === 'amenities') {
+          formData.append(key, JSON.stringify(val));
+        } else {
+          formData.append(key, val);
+        }
+      });
+      return api.post('/listings/quick', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: () => {
+      setStep(3);
     },
     onError: (err) => {
-      console.error('❌ Error creating listing:', err.response?.data || err.message);
-      setError(err.response?.data?.error || 'Failed to submit listing');
+      setError(err.response?.data?.error || 'Failed to create listing');
     },
   });
 
-  const handleNext = () => {
-    // Validate step 1 before proceeding
-    if (step === 1) {
-      if (!form.title || !form.price || !form.address || !form.city || !form.type) {
-        setError('Please fill in all required fields');
-        return;
-      }
-      setError('');
-      setStep(2);
-    }
-  };
-
-  const handleSubmit = () => {
-    // Validate step 2
-    if (!form.contact_name || !form.contact_email || !form.contact_phone) {
-      setError('Please provide your contact information');
-      return;
-    }
-    setError('');
-    createListing.mutate();
-  };
-
   if (!isOpen) return null;
 
-  // Success screen
-  if (step === 3) {
+  // ─── STEP 1: TYPE SELECTION ─────────────────────────────────────────
+  if (!listingType) {
     return (
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">🎉</div>
-          <h2 className="font-display font-bold text-2xl text-cream mb-2">Listing submitted!</h2>
-          <p className="text-muted mb-6">
-            Your property has been sent to Unilo for verification. You'll hear from us within 24 hours via email.
-          </p>
+        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full">
+          <h2 className="font-display font-bold text-2xl text-cream mb-2">
+            What do you want to list?
+          </h2>
+          <p className="text-muted text-sm mb-6">Choose one to get started in 2 clicks.</p>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setListingType('room');
+                setStep(2);
+              }}
+              className="w-full bg-brand/20 border border-brand/40 hover:bg-brand/30 text-cream p-4 rounded-xl transition"
+            >
+              <div className="text-xl mb-2">🏠</div>
+              <div className="font-semibold">List a Room Space</div>
+              <div className="text-xs text-muted">Self-contain, flat, hostel, etc.</div>
+            </button>
+
+            <button
+              onClick={() => {
+                setListingType('roommate');
+                setStep(2);
+              }}
+              className="w-full bg-brand/20 border border-brand/40 hover:bg-brand/30 text-cream p-4 rounded-xl transition"
+            >
+              <div className="text-xl mb-2">🤝</div>
+              <div className="font-semibold">Find a Roommate</div>
+              <div className="text-xs text-muted">Match by passions & preferences</div>
+            </button>
+          </div>
+
           <button
-            onClick={() => {
-              setStep(1);
-              setForm({
-                title: '',
-                type: 'self_contain',
-                bedrooms: 1,
-                bathrooms: 1,
-                price: '',
-                price_period: 'annually',
-                address: '',
-                city: '',
-                state: '',
-                description: '',
-                amenities: [],
-                whatsapp_number: '',
-                youtube_url: '',
-                contact_name: '',
-                contact_email: '',
-                contact_phone: '',
-              });
-              setError('');
-              onClose();
-            }}
-            className="btn-primary w-full"
+            onClick={onClose}
+            className="w-full mt-4 text-muted hover:text-cream"
           >
-            Done
+            Cancel
           </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-navy-800 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-navy-800 border-b border-white/10 px-5 py-4 flex items-center justify-between">
-          <h2 className="font-display font-semibold text-cream text-lg">
-            {step === 1 ? 'List your property' : 'Your contact info'}
-          </h2>
-          <button
-            onClick={() => {
-              if (step === 2) {
-                setStep(1);
-              } else {
+  // ─── ROOM SPACE FLOW ────────────────────────────────────────────────
+  if (listingType === 'room' && step === 2) {
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="bg-navy-800 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="sticky top-0 bg-navy-800 border-b border-white/10 px-5 py-4 flex items-center justify-between">
+            <h2 className="font-display font-semibold text-cream">List a Room Space</h2>
+            <button
+              onClick={() => {
                 onClose();
-              }
-            }}
-            className="text-muted hover:text-cream text-xl leading-none"
-          >
-            {step === 2 ? '←' : '✕'}
-          </button>
-        </div>
+                setListingType(null);
+                setStep(1);
+              }}
+              className="text-muted hover:text-cream text-xl"
+            >
+              ✕
+            </button>
+          </div>
 
-        <div className="p-5 space-y-4">
-          {/* Step 1: Property Details */}
-          {step === 1 && (
-            <>
-              {/* Title */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div>
+              <label className="text-xs text-muted block mb-1.5">Lodge Name *</label>
+              <input
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
+                placeholder="e.g. Paradise Gardens"
+                value={form.title}
+                onChange={(e) => setField('title', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted block mb-1.5">Room Number *</label>
+              <input
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
+                placeholder="e.g. 12A"
+                value={form.region}
+                onChange={(e) => setField('region', e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-muted block mb-1.5">Property name *</label>
+                <label className="text-xs text-muted block mb-1.5">Type *</label>
+                <select
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
+                  value={form.type}
+                  onChange={(e) => setField('type', e.target.value)}
+                >
+                  {ROOM_TYPES.map((t) => (
+                    <option key={t} value={t} className="bg-navy-900">
+                      {t.replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-1.5">Beds</label>
                 <input
-                  className="input"
-                  placeholder="e.g. Cozy Self Contain near Uniport"
-                  value={form.title}
-                  onChange={(e) => set('title', e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream"
+                  type="number"
+                  min="1"
+                  value={form.bedrooms}
+                  onChange={(e) => setField('bedrooms', parseInt(e.target.value))}
                 />
               </div>
-
-              {/* Type + Beds + Baths */}
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Type *</label>
-                  <select
-                    className="input"
-                    value={form.type}
-                    onChange={(e) => set('type', e.target.value)}
-                  >
-                    {TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t.replace(/_/g, ' ')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Beds</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={form.bedrooms}
-                    onChange={(e) => set('bedrooms', parseInt(e.target.value))}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Baths</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={form.bathrooms}
-                    onChange={(e) => set('bathrooms', parseInt(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              {/* Price */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Rent (₦) *</label>
-                  <input
-                    className="input"
-                    type="number"
-                    placeholder="350000"
-                    value={form.price}
-                    onChange={(e) => set('price', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Period</label>
-                  <select
-                    className="input"
-                    value={form.price_period}
-                    onChange={(e) => set('price_period', e.target.value)}
-                  >
-                    <option value="annually">Per Year</option>
-                    <option value="monthly">Per Month</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Address */}
               <div>
-                <label className="text-xs text-muted block mb-1.5">Street address *</label>
+                <label className="text-xs text-muted block mb-1.5">Baths</label>
                 <input
-                  className="input"
-                  placeholder="12 University Road"
-                  value={form.address}
-                  onChange={(e) => set('address', e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream"
+                  type="number"
+                  min="1"
+                  value={form.bathrooms}
+                  onChange={(e) => setField('bathrooms', parseInt(e.target.value))}
                 />
               </div>
+            </div>
 
-              {/* City + State */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">City *</label>
-                  <input
-                    className="input"
-                    placeholder="Port Harcourt"
-                    value={form.city}
-                    onChange={(e) => set('city', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">State *</label>
-                  <input
-                    className="input"
-                    placeholder="Rivers"
-                    value={form.state}
-                    onChange={(e) => set('state', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Description */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-muted block mb-1.5">Description</label>
-                <textarea
-                  className="input min-h-[80px] resize-none"
-                  placeholder="Describe your property…"
-                  value={form.description}
-                  onChange={(e) => set('description', e.target.value)}
+                <label className="text-xs text-muted block mb-1.5">Rent (₦) *</label>
+                <input
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
+                  type="number"
+                  placeholder="350000"
+                  value={form.price}
+                  onChange={(e) => setField('price', e.target.value)}
                 />
               </div>
-
-              {/* WhatsApp + YouTube (optional) */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">💬 WhatsApp</label>
-                  <input
-                    className="input"
-                    placeholder="+2348012345678"
-                    value={form.whatsapp_number}
-                    onChange={(e) => set('whatsapp_number', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">🎥 YouTube tour</label>
-                  <input
-                    className="input"
-                    placeholder="https://youtu.be/…"
-                    value={form.youtube_url}
-                    onChange={(e) => set('youtube_url', e.target.value)}
-                  />
-                </div>
+              <div>
+                <label className="text-xs text-muted block mb-1.5">Period</label>
+                <select
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
+                  value={form.price_period}
+                  onChange={(e) => setField('price_period', e.target.value)}
+                >
+                  <option value="monthly" className="bg-navy-900">Per Month</option>
+                  <option value="annually" className="bg-navy-900">Per Year</option>
+                </select>
               </div>
+            </div>
 
-              {error && (
-                <p className="text-danger text-sm bg-danger/10 border border-danger/20 rounded-xl px-4 py-3">
-                  {error}
-                </p>
+            <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg">
+              <input
+                type="checkbox"
+                id="clusters"
+                checked={form.open_for_clusters}
+                onChange={(e) => setField('open_for_clusters', e.target.checked)}
+                className="w-5 h-5 accent-brand"
+              />
+              <label htmlFor="clusters" className="text-sm text-cream cursor-pointer">
+                Open for Clusters (roommate matching)
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted block mb-1.5">University *</label>
+                <select
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
+                  value={form.university}
+                  onChange={(e) => setField('university', e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {UNIVERSITIES.map((u) => (
+                    <option key={u} value={u} className="bg-navy-900">
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-1.5">Campus</label>
+                <select
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
+                  value={form.campus}
+                  onChange={(e) => setField('campus', e.target.value)}
+                >
+                  <option value="">Any campus</option>
+                  {form.university && CAMPUSES[form.university]?.map((c) => (
+                    <option key={c} value={c} className="bg-navy-900">
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted block mb-1.5">📍 Location on Map *</label>
+              <div className="w-full h-40 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-muted text-sm mb-2">
+                [Map Picker - Click to select]
+              </div>
+              <input
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm"
+                placeholder="Or paste Google Maps link"
+                value={form.map_location}
+                onChange={(e) => setField('map_location', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted block mb-2">Amenities</label>
+              <div className="flex flex-wrap gap-2">
+                {AMENITIES.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => toggleAmenity(a)}
+                    className={`badge text-xs px-2 py-1 rounded-full border transition ${
+                      form.amenities.includes(a)
+                        ? 'bg-brand/20 text-brand border-brand/40'
+                        : 'bg-white/5 text-muted border-white/10'
+                    }`}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted block mb-1.5">🎥 YouTube Tour Link</label>
+              <input
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
+                placeholder="https://youtu.be/..."
+                value={form.youtube_url}
+                onChange={(e) => setField('youtube_url', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted block mb-1.5">📸 Photos (1-20)</label>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="text-sm text-muted w-full"
+              />
+              {form.photos.length > 0 && (
+                <p className="text-brand text-xs mt-1">{form.photos.length} photo(s) selected</p>
               )}
-            </>
-          )}
+            </div>
 
-          {/* Step 2: Contact Info */}
-          {step === 2 && (
-            <>
-              <p className="text-muted text-sm mb-4">
-                We'll use this to contact you about your listing verification.
-              </p>
+            {/* Contact Information */}
+            <div className="border-t border-white/10 pt-4 mt-6">
+              <h3 className="text-sm font-semibold text-cream mb-3">Your Contact Information</h3>
 
               <div>
-                <label className="text-xs text-muted block mb-1.5">Your name *</label>
+                <label className="text-xs text-muted block mb-1.5">Name *</label>
                 <input
-                  className="input"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
                   placeholder="John Doe"
                   value={form.contact_name}
-                  onChange={(e) => set('contact_name', e.target.value)}
+                  onChange={(e) => setField('contact_name', e.target.value)}
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Email address *</label>
+              <div className="mt-3">
+                <label className="text-xs text-muted block mb-1.5">Email *</label>
                 <input
-                  className="input"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
                   type="email"
                   placeholder="john@example.com"
                   value={form.contact_email}
-                  onChange={(e) => set('contact_email', e.target.value)}
+                  onChange={(e) => setField('contact_email', e.target.value)}
                 />
               </div>
 
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Phone number *</label>
+              <div className="mt-3">
+                <label className="text-xs text-muted block mb-1.5">Phone *</label>
                 <input
-                  className="input"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
                   placeholder="+234 801 234 5678"
                   value={form.contact_phone}
-                  onChange={(e) => set('contact_phone', e.target.value)}
+                  onChange={(e) => setField('contact_phone', e.target.value)}
                 />
               </div>
+            </div>
 
-              {error && (
-                <p className="text-danger text-sm bg-danger/10 border border-danger/20 rounded-xl px-4 py-3">
-                  {error}
-                </p>
-              )}
-            </>
-          )}
+            {error && <p className="text-danger text-sm bg-danger/10 p-3 rounded">{error}</p>}
+          </div>
+
+          <div className="sticky bottom-0 bg-navy-800 border-t border-white/10 px-5 py-4 flex gap-3">
+            <button
+              onClick={() => {
+                setListingType(null);
+                setStep(1);
+              }}
+              className="flex-1 bg-white/5 hover:bg-white/10 text-cream rounded-lg"
+            >
+              Back
+            </button>
+            <button
+              onClick={() => createListing.mutate()}
+              disabled={
+                createListing.isPending ||
+                !form.title ||
+                !form.price ||
+                !form.university ||
+                !form.contact_name ||
+                !form.contact_email ||
+                !form.contact_phone
+              }
+              className="flex-1 bg-brand hover:bg-brand/90 text-navy font-semibold rounded-lg disabled:opacity-50"
+            >
+              {createListing.isPending ? 'Submitting...' : 'Submit Listing'}
+            </button>
+          </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-navy-800 border-t border-white/10 px-5 py-4 flex gap-3">
-          {step === 1 ? (
+  // ─── SUCCESS SCREEN ─────────────────────────────────────────────────
+  if (step === 3) {
+    const isHostRegistered = isAuthenticated && user?.role === 'user_admin';
+
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center">
+          <div className="text-5xl mb-4">✅</div>
+          <h2 className="font-display font-bold text-2xl text-cream mb-2">
+            Listing submitted!
+          </h2>
+
+          {!isHostRegistered ? (
             <>
-              <button onClick={onClose} className="btn-ghost flex-1">
-                Cancel
-              </button>
-              <button onClick={handleNext} className="btn-primary flex-1">
-                Next →
-              </button>
+              <p className="text-muted mb-4">
+                Your listing has been sent to Unilo for verification. We'll review it within 24 hours and get back to you.
+              </p>
+              <p className="text-muted text-sm mb-6">
+                📱 We'll contact you at: <span className="text-cream font-medium">{form.contact_phone}</span>
+              </p>
+
+              <div className="space-y-3">
+                <p className="text-muted text-sm">
+                  To manage your listings and earnings, register as a host:
+                </p>
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate('/become-host');
+                  }}
+                  className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-2 rounded-lg transition"
+                >
+                  Become a Host
+                </button>
+                <button
+                  onClick={() => {
+                    setStep(1);
+                    setListingType(null);
+                    setForm({
+                      title: '',
+                      type: 'self_contain',
+                      bedrooms: 1,
+                      bathrooms: 1,
+                      price: '',
+                      price_period: 'annually',
+                      open_for_clusters: false,
+                      university: '',
+                      campus: '',
+                      region: '',
+                      map_location: '',
+                      youtube_url: '',
+                      amenities: [],
+                      photos: [],
+                      contact_name: '',
+                      contact_email: '',
+                      contact_phone: '',
+                    });
+                    setError('');
+                    onClose();
+                  }}
+                  className="w-full bg-white/5 hover:bg-white/10 text-cream py-2 rounded-lg"
+                >
+                  Later
+                </button>
+              </div>
             </>
           ) : (
             <>
-              <button onClick={() => setStep(1)} className="btn-ghost flex-1">
-                ← Back
-              </button>
+              <p className="text-muted mb-6">
+                Your listing has been sent to Unilo for verification. We'll review it within 24 hours and get back to you.
+              </p>
+              <p className="text-muted text-sm mb-6">
+                📱 We'll contact you at: <span className="text-cream font-medium">{form.contact_phone}</span>
+              </p>
               <button
-                onClick={handleSubmit}
-                disabled={createListing.isPending}
-                className="btn-primary flex-1"
+                onClick={() => {
+                  setStep(1);
+                  setListingType(null);
+                  setForm({
+                    title: '',
+                    type: 'self_contain',
+                    bedrooms: 1,
+                    bathrooms: 1,
+                    price: '',
+                    price_period: 'annually',
+                    open_for_clusters: false,
+                    university: '',
+                    campus: '',
+                    region: '',
+                    map_location: '',
+                    youtube_url: '',
+                    amenities: [],
+                    photos: [],
+                    contact_name: '',
+                    contact_email: '',
+                    contact_phone: '',
+                  });
+                  setError('');
+                  onClose();
+                }}
+                className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-2 rounded-lg"
               >
-                {createListing.isPending ? 'Submitting…' : 'Submit listing'}
+                Done
               </button>
             </>
           )}
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
