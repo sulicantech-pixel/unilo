@@ -1,260 +1,418 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
+import { COLORS, STYLES, ANIMATIONS, TYPOGRAPHY } from '../utils/designSystem';
+
+const COMMUNITY_COLORS = {
+  primary: '#8b5cf6',
+  primaryDark: '#7c3aed',
+  primaryLight: '#a78bfa',
+  navy: '#0a0a0a',
+  cream: '#f5f5f5',
+};
 
 export default function CommunityPage() {
-  const [activeTab, setActiveTab] = useState('explore'); // explore, trends, create, groups, profile
-  const [selectedUni, setSelectedUni] = useState('all'); // 'all' or specific uni
-  const [selectedDept, setSelectedDept] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createType, setCreateType] = useState('post'); // post, story, poll, event
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'explore');
+  const [selectedUni, setSelectedUni] = useState('all');
 
-  // Mock data
   const universities = ['University of Lagos', 'Covenant University', 'OAU Ile-Ife', 'UNIPORT', 'UNIZIK'];
-  const departments = ['Computer Science', 'Engineering', 'Medicine', 'Law', 'Business'];
 
   const { data: posts } = useQuery({
-    queryKey: ['community-posts', selectedUni, selectedDept],
-    queryFn: () => api.get(`/community/posts?uni=${selectedUni}&dept=${selectedDept}`).then((r) => r.data),
+    queryKey: ['community-posts', selectedUni, activeTab],
+    queryFn: () =>
+      api
+        .get(`/community/posts?uni=${selectedUni}`)
+        .then((r) => r.data)
+        .catch(() => ({ posts: [] })),
   });
 
   const { data: groups } = useQuery({
     queryKey: ['community-groups'],
-    queryFn: () => api.get('/community/groups').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get('/community/groups')
+        .then((r) => r.data)
+        .catch(() => ({ groups: [] })),
   });
 
   const { data: trends } = useQuery({
     queryKey: ['community-trends'],
-    queryFn: () => api.get('/community/trends').then((r) => r.data),
+    queryFn: () =>
+      api
+        .get('/community/trends')
+        .then((r) => r.data)
+        .catch(() => ({ trends: [] })),
   });
 
-  // ─── EXPLORE TAB ───────────────────────────────────────────────
-  if (activeTab === 'explore') {
-    return (
-      <div className="min-h-dvh bg-navy pb-24">
-        {/* Header with filters */}
-        <div className="sticky top-0 z-40 bg-navy/95 backdrop-blur border-b border-white/10 px-4 py-4 space-y-3">
-          <h1 className="font-display font-bold text-cream text-lg">Community Feed</h1>
+  const tabs = [
+    { id: 'explore', label: 'Explore' },
+    { id: 'trends', label: 'Trends' },
+    { id: 'groups', label: 'Groups' },
+    { id: 'profile', label: 'Profile' },
+  ];
 
-          {/* University Selector - Scrollable Dropdown */}
-          <div className="relative">
-            <label className="text-xs text-muted block mb-1.5">Select University</label>
-            <select
-              value={selectedUni}
-              onChange={(e) => setSelectedUni(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm"
-            >
-              <option value="all">All Universities</option>
-              {universities.map((uni) => (
-                <option key={uni} value={uni}>
-                  {uni}
-                </option>
-              ))}
-            </select>
-          </div>
+  return (
+    <motion.main
+      className="min-h-dvh pb-32"
+      style={{ backgroundColor: COMMUNITY_COLORS.navy }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {/* ─── HEADER WITH BACK BUTTON ────────────────────────────────────────── */}
+      <motion.div
+        className="sticky top-0 z-40 px-4 sm:px-6 py-4 flex items-center gap-3 border-b"
+        style={{
+          backgroundColor: `${COMMUNITY_COLORS.primary}15`,
+          borderColor: `${COMMUNITY_COLORS.primary}30`,
+          backdropFilter: 'blur(10px)',
+        }}
+        variants={ANIMATIONS.slideDownFade}
+      >
+        <motion.button
+          onClick={() => navigate('/')}
+          className="p-2 rounded-lg transition-all"
+          style={{
+            backgroundColor: `${COMMUNITY_COLORS.primary}20`,
+            color: COMMUNITY_COLORS.primary,
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          ← Back
+        </motion.button>
+        <div className="flex-1">
+          <h1 className={`${TYPOGRAPHY.h3}`} style={{ color: COMMUNITY_COLORS.cream }}>
+            Community
+          </h1>
+          <p className={`${TYPOGRAPHY.caption}`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+            Connect, share & discover
+          </p>
+        </div>
+      </motion.div>
 
-          {/* Department Selector */}
-          {selectedUni !== 'all' && (
-            <div className="relative">
-              <label className="text-xs text-muted block mb-1.5">Department</label>
+      {/* ─── TABS ──────────────────────────────────────────────────────────────── */}
+      <motion.div
+        className="sticky top-16 z-30 px-4 sm:px-6 py-3 flex gap-2 overflow-x-auto scrollbar-hide border-b"
+        style={{
+          backgroundColor: `${COMMUNITY_COLORS.primary}08`,
+          borderColor: `${COMMUNITY_COLORS.primary}20`,
+        }}
+        variants={ANIMATIONS.slideDownFade}
+      >
+        {tabs.map((tab) => (
+          <motion.button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              backgroundColor: activeTab === tab.id ? COMMUNITY_COLORS.primary : 'transparent',
+              color: activeTab === tab.id ? COMMUNITY_COLORS.navy : COMMUNITY_COLORS.cream,
+              borderColor: activeTab === tab.id ? 'transparent' : `${COMMUNITY_COLORS.primary}30`,
+              borderWidth: '1px',
+            }}
+          >
+            {tab.label}
+          </motion.button>
+        ))}
+      </motion.div>
+
+      {/* ─── CONTENT AREAS ──────────────────────────────────────────────────────── */}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        {/* EXPLORE TAB */}
+        {activeTab === 'explore' && (
+          <motion.div
+            variants={ANIMATIONS.staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="space-y-4"
+          >
+            {/* University Selector */}
+            <motion.div variants={ANIMATIONS.staggerItem}>
+              <label className={`${TYPOGRAPHY.label} block mb-2`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                Select University
+              </label>
               <select
-                value={selectedDept}
-                onChange={(e) => setSelectedDept(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm"
+                value={selectedUni}
+                onChange={(e) => setSelectedUni(e.target.value)}
+                className={`w-full ${STYLES.inputBase}`}
+                style={{
+                  backgroundColor: `${COMMUNITY_COLORS.primary}10`,
+                  borderColor: `${COMMUNITY_COLORS.primary}30`,
+                  color: COMMUNITY_COLORS.cream,
+                }}
               >
-                <option value="all">All Departments</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
+                <option value="all" style={{ color: COMMUNITY_COLORS.navy }}>
+                  All Universities
+                </option>
+                {universities.map((uni) => (
+                  <option key={uni} value={uni} style={{ color: COMMUNITY_COLORS.navy }}>
+                    {uni}
                   </option>
                 ))}
               </select>
-            </div>
-          )}
-        </div>
+            </motion.div>
 
-        {/* Posts Feed */}
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-          {posts?.map((post) => (
-            <div key={post.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-brand/20" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-cream">{post.author_name}</span>
-                    {post.is_verified && <span className="text-brand text-xs">✓</span>}
+            {/* Posts */}
+            {posts?.length === 0 ? (
+              <motion.div
+                className="text-center py-12"
+                variants={ANIMATIONS.slideUpFade}
+              >
+                <div className="text-4xl mb-3">📭</div>
+                <p style={{ color: COMMUNITY_COLORS.cream }}>No posts yet</p>
+              </motion.div>
+            ) : (
+              posts?.map((post, idx) => (
+                <motion.div
+                  key={post.id}
+                  className={`${STYLES.cardBase} p-4 sm:p-6`}
+                  style={{
+                    backgroundColor: `${COMMUNITY_COLORS.primary}08`,
+                    borderColor: `${COMMUNITY_COLORS.primary}20`,
+                  }}
+                  variants={ANIMATIONS.staggerItem}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`${TYPOGRAPHY.body} font-semibold`} style={{ color: COMMUNITY_COLORS.cream }}>
+                          {post.author_name}
+                        </span>
+                        {post.is_verified && (
+                          <span style={{ color: COMMUNITY_COLORS.primary }}>✓</span>
+                        )}
+                      </div>
+                      <span className={`${TYPOGRAPHY.caption}`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                        {post.university}
+                      </span>
+                    </div>
+                    <span className={`${TYPOGRAPHY.caption}`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                      {post.time_ago}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted">{post.university}</span>
-                </div>
-                <span className="text-xs text-muted">{post.time_ago}</span>
-              </div>
 
-              <p className="text-cream text-sm mb-3">{post.content}</p>
+                  <p className={`${TYPOGRAPHY.body} mb-3`} style={{ color: COMMUNITY_COLORS.cream }}>
+                    {post.content}
+                  </p>
 
-              {post.image && <img src={post.image} alt="" className="w-full rounded-lg mb-3" />}
-              {post.video_embed && (
-                <div className="aspect-video bg-black/50 rounded-lg mb-3 flex items-center justify-center">
-                  <span className="text-white">▶ Video</span>
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 text-xs text-muted pt-3 border-t border-white/10">
-                <button className="hover:text-brand">❤️ {post.likes}</button>
-                <button className="hover:text-brand">💬 {post.comments}</button>
-                <button className="hover:text-brand">🔄 {post.shares}</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── TRENDS TAB ────────────────────────────────────────────────
-  if (activeTab === 'trends') {
-    return (
-      <div className="min-h-dvh bg-navy pb-24">
-        <div className="sticky top-0 z-40 bg-navy/95 backdrop-blur border-b border-white/10 px-4 py-4">
-          <h1 className="font-display font-bold text-cream text-lg">Trending Now</h1>
-        </div>
-
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
-          {/* Admin Featured Section */}
-          <div className="bg-brand/20 border border-brand/40 rounded-lg p-4">
-            <span className="text-xs text-brand font-semibold">📌 FEATURED</span>
-            <h3 className="text-cream font-semibold mt-1">Housing Crisis: What We Need to Know</h3>
-            <p className="text-muted text-sm mt-1">Admin update on new housing regulations</p>
-          </div>
-
-          {/* Trending Topics */}
-          {trends?.map((trend) => (
-            <div key={trend.id} className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 cursor-pointer">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-cream font-semibold">#{trend.hashtag}</h3>
-                  <p className="text-xs text-muted mt-1">{trend.posts_count} posts • {trend.engagement}</p>
-                </div>
-                <span className="text-xl">{trend.emoji}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── GROUPS TAB ────────────────────────────────────────────────
-  if (activeTab === 'groups') {
-    return (
-      <div className="min-h-dvh bg-navy pb-24">
-        <div className="sticky top-0 z-40 bg-navy/95 backdrop-blur border-b border-white/10 px-4 py-4 flex items-center gap-3">
-          <h1 className="font-display font-bold text-cream text-lg">Groups & Communities</h1>
-          <input
-            type="text"
-            placeholder="Search groups..."
-            className="ml-auto flex-1 bg-white/5 border border-white/10 rounded px-3 py-1 text-xs text-cream placeholder-muted"
-          />
-        </div>
-
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
-          {/* Personalized Groups First */}
-          <div className="text-xs text-muted font-semibold mb-3">👤 YOUR GROUPS</div>
-          
-          {groups?.recommended?.map((group) => (
-            <div key={group.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-lg bg-brand/20" />
-                <div className="flex-1">
-                  <h3 className="text-cream font-semibold">{group.name}</h3>
-                  <p className="text-xs text-muted mt-0.5">{group.description}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted">
-                    <span>👥 {group.members}</span>
-                    <span>👨 {group.male_ratio}% | 👩 {group.female_ratio}%</span>
-                    <span>🏫 {group.universities}</span>
+                  <div className="flex gap-4 text-sm" style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                    <button className="hover:scale-110 transition">❤️ {post.likes}</button>
+                    <button className="hover:scale-110 transition">💬 {post.comments}</button>
+                    <button className="hover:scale-110 transition">🔄 {post.shares}</button>
                   </div>
-                </div>
-                <button className="bg-brand text-navy text-xs px-3 py-1 rounded font-semibold">
-                  {group.is_member ? 'Joined' : 'Join'}
-                </button>
-              </div>
-            </div>
-          ))}
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        )}
 
-          {/* All Groups */}
-          <div className="text-xs text-muted font-semibold mb-3 mt-6">🌍 ALL GROUPS</div>
-          
-          {groups?.all?.map((group) => (
-            <div key={group.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-lg bg-white/10" />
-                <div className="flex-1">
-                  <h3 className="text-cream font-semibold">{group.name}</h3>
-                  <p className="text-xs text-muted mt-0.5">{group.description}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-muted">
-                    <span>👥 {group.members}</span>
-                    <span>🏫 {group.universities}</span>
+        {/* TRENDS TAB */}
+        {activeTab === 'trends' && (
+          <motion.div
+            variants={ANIMATIONS.staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="space-y-4"
+          >
+            {/* Admin Featured */}
+            <motion.div
+              className={`${STYLES.cardBase} p-4 sm:p-6`}
+              style={{
+                backgroundColor: `${COMMUNITY_COLORS.primary}20`,
+                borderColor: `${COMMUNITY_COLORS.primary}40`,
+              }}
+              variants={ANIMATIONS.staggerItem}
+            >
+              <span className="text-xs font-semibold" style={{ color: COMMUNITY_COLORS.primary }}>
+                📌 FEATURED
+              </span>
+              <h3 className={`${TYPOGRAPHY.h4} mt-1`} style={{ color: COMMUNITY_COLORS.cream }}>
+                Housing Crisis: What We Need to Know
+              </h3>
+              <p className={`${TYPOGRAPHY.bodySmall} mt-1`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                Admin update on new housing regulations
+              </p>
+            </motion.div>
+
+            {/* Trending Topics */}
+            {trends?.length === 0 ? (
+              <motion.div
+                className="text-center py-12"
+                variants={ANIMATIONS.slideUpFade}
+              >
+                <div className="text-4xl mb-3">📊</div>
+                <p style={{ color: COMMUNITY_COLORS.cream }}>No trends yet</p>
+              </motion.div>
+            ) : (
+              trends?.map((trend) => (
+                <motion.div
+                  key={trend.id}
+                  className={`${STYLES.cardBase} p-4 sm:p-6 hover:scale-105 cursor-pointer`}
+                  style={{
+                    backgroundColor: `${COMMUNITY_COLORS.primary}08`,
+                    borderColor: `${COMMUNITY_COLORS.primary}20`,
+                  }}
+                  variants={ANIMATIONS.staggerItem}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className={`${TYPOGRAPHY.h4}`} style={{ color: COMMUNITY_COLORS.cream }}>
+                        #{trend.hashtag}
+                      </h3>
+                      <p className={`${TYPOGRAPHY.caption} mt-1`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                        {trend.posts_count} posts • {trend.engagement}
+                      </p>
+                    </div>
+                    <span className="text-2xl">{trend.emoji}</span>
                   </div>
-                </div>
-                <button className="bg-white/10 hover:bg-white/20 text-cream text-xs px-3 py-1 rounded">
-                  View
-                </button>
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        )}
+
+        {/* GROUPS TAB */}
+        {activeTab === 'groups' && (
+          <motion.div
+            variants={ANIMATIONS.staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="space-y-4"
+          >
+            <motion.div variants={ANIMATIONS.staggerItem}>
+              <input
+                type="text"
+                placeholder="Search groups..."
+                className={`w-full ${STYLES.inputBase}`}
+                style={{
+                  backgroundColor: `${COMMUNITY_COLORS.primary}10`,
+                  borderColor: `${COMMUNITY_COLORS.primary}30`,
+                  color: COMMUNITY_COLORS.cream,
+                }}
+              />
+            </motion.div>
+
+            {groups?.length === 0 ? (
+              <motion.div
+                className="text-center py-12"
+                variants={ANIMATIONS.slideUpFade}
+              >
+                <div className="text-4xl mb-3">👥</div>
+                <p style={{ color: COMMUNITY_COLORS.cream }}>No groups yet</p>
+              </motion.div>
+            ) : (
+              groups?.map((group) => (
+                <motion.div
+                  key={group.id}
+                  className={`${STYLES.cardBase} p-4 sm:p-6`}
+                  style={{
+                    backgroundColor: `${COMMUNITY_COLORS.primary}08`,
+                    borderColor: `${COMMUNITY_COLORS.primary}20`,
+                  }}
+                  variants={ANIMATIONS.staggerItem}
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-lg" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
+                    <div className="flex-1">
+                      <h3 className={`${TYPOGRAPHY.h4}`} style={{ color: COMMUNITY_COLORS.cream }}>
+                        {group.name}
+                      </h3>
+                      <p className={`${TYPOGRAPHY.bodySmall} mt-1`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                        {group.description}
+                      </p>
+                      <div className="flex gap-3 mt-2 text-xs" style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                        <span>👥 {group.members}</span>
+                        <span>🏫 {group.universities}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        )}
+
+        {/* PROFILE TAB */}
+        {activeTab === 'profile' && (
+          <motion.div
+            variants={ANIMATIONS.staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="space-y-4"
+          >
+            {/* Profile Header */}
+            <motion.div
+              className={`${STYLES.cardBase} p-6 text-center`}
+              style={{
+                backgroundColor: `${COMMUNITY_COLORS.primary}10`,
+                borderColor: `${COMMUNITY_COLORS.primary}30`,
+              }}
+              variants={ANIMATIONS.staggerItem}
+            >
+              <div
+                className="w-20 h-20 rounded-full mx-auto mb-3"
+                style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }}
+              />
+              <h2 className={`${TYPOGRAPHY.h3}`} style={{ color: COMMUNITY_COLORS.cream }}>
+                Your Name
+              </h2>
+              <p className={`${TYPOGRAPHY.bodySmall} mt-1`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                University of Lagos • CS • 200L
+              </p>
+              <div className="flex justify-center gap-3 mt-3 text-sm" style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                <span>📝 12 posts</span>
+                <span>👥 342 followers</span>
               </div>
-            </div>
-          ))}
-        </div>
+            </motion.div>
+
+            {/* Settings */}
+            {['Edit Profile', 'Notifications', 'Blocked Users', 'Sign Out'].map((item, idx) => (
+              <motion.button
+                key={item}
+                className={`w-full ${STYLES.cardBase} p-4 text-left font-medium`}
+                style={{
+                  backgroundColor: `${COMMUNITY_COLORS.primary}08`,
+                  borderColor: `${COMMUNITY_COLORS.primary}20`,
+                  color: COMMUNITY_COLORS.cream,
+                }}
+                variants={ANIMATIONS.staggerItem}
+                whileHover={{ x: 4 }}
+              >
+                {item}
+              </motion.button>
+            ))}
+          </motion.div>
+        )}
       </div>
-    );
-  }
 
-  // ─── PROFILE TAB ────────────────────────────────────────────────
-  if (activeTab === 'profile') {
-    return (
-      <div className="min-h-dvh bg-navy pb-24">
-        <div className="sticky top-0 z-40 bg-navy/95 backdrop-blur border-b border-white/10 px-4 py-4">
-          <h1 className="font-display font-bold text-cream text-lg">My Profile</h1>
-        </div>
-
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-          {/* Profile Header */}
-          <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
-            <div className="w-20 h-20 rounded-full bg-brand/20 mx-auto mb-3" />
-            <h2 className="text-cream font-semibold text-lg">Your Name</h2>
-            <p className="text-muted text-sm">University of Lagos • Computer Science • 200L</p>
-            <div className="flex justify-center gap-3 mt-3 text-xs text-muted">
-              <span>📝 12 posts</span>
-              <span>👥 342 followers</span>
-              <span>⭐ Member since Jan 2024</span>
-            </div>
-          </div>
-
-          {/* Your Posts */}
-          <div>
-            <h3 className="text-cream font-semibold mb-3">Your Recent Posts</h3>
-            {/* Posts would render here */}
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center text-muted text-sm">
-              No posts yet
-            </div>
-          </div>
-
-          {/* Settings */}
-          <div className="space-y-2">
-            <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-cream p-3 rounded text-sm">
-              Edit Profile
-            </button>
-            <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-cream p-3 rounded text-sm">
-              Notifications & Privacy
-            </button>
-            <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-cream p-3 rounded text-sm">
-              Blocked Users
-            </button>
-            <button className="w-full bg-danger/10 hover:bg-danger/20 border border-danger/20 text-danger p-3 rounded text-sm">
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+      {/* Floating Create Button */}
+      {activeTab === 'explore' && (
+        <motion.button
+          className="fixed bottom-28 right-6 w-14 h-14 rounded-full font-bold text-2xl shadow-lg"
+          style={{
+            backgroundColor: COMMUNITY_COLORS.primary,
+            color: COMMUNITY_COLORS.navy,
+          }}
+          animate={{ y: [0, -4, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          ➕
+        </motion.button>
+      )}
+    </motion.main>
+  );
 }
