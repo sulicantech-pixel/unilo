@@ -1,272 +1,200 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-
-const TYPE_LABELS = {
-  self_contain: 'Self Contain',
-  room_and_parlour: 'Room & Parlour',
-  flat: 'Flat',
-  bungalow: 'Bungalow',
-  duplex: 'Duplex',
-  hostel: 'Hostel',
-  room: 'Room',
-  roommate: 'Roommate',
-  mini_flat: 'Mini Flat',
-  apartment: 'Apartment',
-  bq: 'BQ',
-};
-
-// Demo photos per card (3 placeholder images)
-const DEMO_PHOTOS = [
-  'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&q=80',
-  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80',
-  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80',
-];
+import { useNavigate } from 'react-router-dom';
+import { COLORS, STYLES, ANIMATIONS, TYPOGRAPHY } from '../utils/designSystem';
 
 export default function ListingCard({ listing }) {
   const navigate = useNavigate();
-  const [photoIndex, setPhotoIndex] = useState(0);
-
-  // Guard — if listing is undefined/null, render nothing
-  if (!listing) return null;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
-  const touchStartX = useRef(null);
 
-  // Build photos array — use real photos, pad with demos if fewer than 3
-  const rawPhotos = listing.photos?.map(p => p.url).filter(Boolean) || [];
-  const photos = rawPhotos.length >= 1
-    ? [...rawPhotos, ...DEMO_PHOTOS].slice(0, 3)
-    : DEMO_PHOTOS;
+  const images = listing.photos || [listing.image] || [];
+  const currentImage = images[currentImageIndex];
 
-  const price = new Intl.NumberFormat('en-NG', {
-    style: 'currency',
-    currency: 'NGN',
-    maximumFractionDigits: 0,
-  }).format(listing.price);
-
-  const prevPhoto = (e) => {
+  const handlePrevImage = (e) => {
     e.stopPropagation();
-    setPhotoIndex(i => (i - 1 + photos.length) % photos.length);
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   };
 
-  const nextPhoto = (e) => {
+  const handleNextImage = (e) => {
     e.stopPropagation();
-    setPhotoIndex(i => (i + 1) % photos.length);
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartX.current === null) return;
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(delta) > 40) {
-      if (delta < 0) setPhotoIndex(i => (i + 1) % photos.length);
-      else setPhotoIndex(i => (i - 1 + photos.length) % photos.length);
-    }
-    touchStartX.current = null;
+  const handleCardClick = () => {
+    navigate(`/listing/${listing.id}`);
   };
 
   return (
-    <motion.article
-      whileTap={{ scale: 0.985 }}
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 14,
-        overflow: 'hidden',
-        cursor: 'pointer',
-        fontFamily: "'DM Sans', sans-serif",
-        transition: 'border-color 0.2s',
-      }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
-      onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-      onClick={() => navigate(`/listing/${listing.id}`)}
+    <motion.div
+      onClick={handleCardClick}
+      className={`${STYLES.cardBase} overflow-hidden cursor-pointer group h-full flex flex-col`}
+      variants={ANIMATIONS.cardHover}
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 10 }}
     >
-      {/* Photo carousel */}
-      <div
-        style={{ position: 'relative', height: 180, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Images */}
-        {photos.map((url, i) => (
+      {/* Image Carousel Container */}
+      <div className="relative h-48 sm:h-56 overflow-hidden bg-white/5">
+        {/* Main Image */}
+        <motion.div
+          key={currentImageIndex}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="absolute inset-0"
+        >
           <img
-            key={i}
-            src={url}
-            alt={`${listing.title} photo ${i + 1}`}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              opacity: i === photoIndex ? 1 : 0,
-              transition: 'opacity 0.3s ease',
-            }}
+            src={currentImage || 'https://via.placeholder.com/400x300?text=No+Image'}
+            alt={listing.title}
+            className="w-full h-full object-cover"
           />
-        ))}
+        </motion.div>
 
-        {/* Arrow buttons — always visible */}
-        <button
-          onClick={prevPhoto}
-          style={{
-            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-            width: 28, height: 28,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 2,
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <button
-          onClick={nextPhoto}
-          style={{
-            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-            width: 28, height: 28,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 2,
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        {/* Dot indicators */}
-        <div style={{
-          position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', gap: 4, zIndex: 2,
-        }}>
-          {photos.map((_, i) => (
-            <div
-              key={i}
-              onClick={e => { e.stopPropagation(); setPhotoIndex(i); }}
+        {/* Image Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <motion.button
+              onClick={handlePrevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
               style={{
-                width: i === photoIndex ? 16 : 5,
-                height: 5,
-                borderRadius: 100,
-                background: i === photoIndex ? '#ff6b00' : 'rgba(255,255,255,0.5)',
-                transition: 'all 0.25s ease',
-                cursor: 'pointer',
+                backgroundColor: `${COLORS.brand}dd`,
+                color: COLORS.navy,
               }}
-            />
-          ))}
-        </div>
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              ‹
+            </motion.button>
+            <motion.button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full transition-all opacity-0 group-hover:opacity-100"
+              style={{
+                backgroundColor: `${COLORS.brand}dd`,
+                color: COLORS.navy,
+              }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              ›
+            </motion.button>
+          </>
+        )}
 
-        {/* Type badge */}
-        <div style={{
-          position: 'absolute', top: 10, left: 10, zIndex: 2,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 6,
-          padding: '3px 8px',
-          fontSize: 10,
-          fontWeight: 600,
-          color: '#fff',
-          letterSpacing: '0.04em',
-        }}>
-          {TYPE_LABELS[listing.type] || listing.type}
-        </div>
-
-        {/* Vacancy badge */}
-        <div style={{
-          position: 'absolute', top: 10, right: 42, zIndex: 2,
-          background: listing.is_vacant ? 'rgba(255,107,0,0.9)' : 'rgba(255,255,255,0.15)',
-          borderRadius: 6,
-          padding: '3px 8px',
-          fontSize: 10,
-          fontWeight: 600,
-          color: '#fff',
-          letterSpacing: '0.04em',
-        }}>
-          {listing.is_vacant ? 'Vacant' : 'Taken'}
-        </div>
-
-        {/* Save button */}
-        <button
-          onClick={e => { e.stopPropagation(); setIsSaved(v => !v); }}
-          style={{
-            position: 'absolute', top: 8, right: 8, zIndex: 2,
-            width: 30, height: 30,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: '50%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
+        {/* Save Button */}
+        <motion.button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsSaved(!isSaved);
           }}
+          className="absolute top-3 right-3 z-10 p-2 rounded-full transition-all"
+          style={{
+            backgroundColor: isSaved ? COLORS.brand : `${COLORS.glass}`,
+            color: isSaved ? COLORS.navy : COLORS.cream,
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill={isSaved ? '#ff6b00' : 'none'} stroke={isSaved ? '#ff6b00' : 'white'} strokeWidth="2">
-            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-          </svg>
-        </button>
+          ♥
+        </motion.button>
+
+        {/* Verified Badge */}
+        {listing.is_verified && (
+          <div
+            className="absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+            style={{ backgroundColor: `${COLORS.success}20`, color: COLORS.success }}
+          >
+            ✓ Verified
+          </div>
+        )}
+
+        {/* Image Indicator Dots */}
+        {images.length > 1 && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, idx) => (
+              <motion.div
+                key={idx}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  backgroundColor: idx === currentImageIndex ? COLORS.brand : COLORS.cream,
+                  opacity: idx === currentImageIndex ? 1 : 0.4,
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Info */}
-      <div style={{ padding: '12px 14px 14px' }}>
-        <h3 style={{
-          fontFamily: "'Clash Display', 'DM Sans', sans-serif",
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#fff',
-          margin: '0 0 4px',
-          lineHeight: 1.35,
-          overflow: 'hidden',
-          display: '-webkit-box',
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: 'vertical',
-        }}>
-          {listing.title}
-        </h3>
-
-        <p style={{
-          fontSize: 12,
-          color: 'rgba(255,255,255,0.4)',
-          margin: '0 0 10px',
-          overflow: 'hidden',
-          display: '-webkit-box',
-          WebkitLineClamp: 1,
-          WebkitBoxOrient: 'vertical',
-        }}>
-          {listing.address}, {listing.city}
-        </p>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontFamily: "'Clash Display', sans-serif", fontSize: 16, fontWeight: 700, color: '#ff6b00' }}>
-              {price}
+      {/* Card Content */}
+      <div className="flex-1 p-4 flex flex-col">
+        {/* Title & Price */}
+        <div className="mb-3">
+          <h3 className={`${TYPOGRAPHY.h4} line-clamp-2 mb-1`} style={{ color: COLORS.cream }}>
+            {listing.title}
+          </h3>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xl sm:text-2xl font-bold" style={{ color: COLORS.brand }}>
+              ₦{(listing.price / 1000000).toFixed(1)}M
             </span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginLeft: 3 }}>
-              / {listing.price_period === 'monthly' ? 'mo' : 'yr'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 010 4H2"/><path d="M2 16h18a2 2 0 000-4"/></svg>
-              {listing.bedrooms}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h16"/><path d="M4 18V6a2 2 0 012-2h12a2 2 0 012 2v12"/><path d="M4 18H2m20 0h-2"/></svg>
-              {listing.bathrooms}
+            <span className={`${TYPOGRAPHY.bodySmall}`} style={{ color: COLORS.muted }}>
+              /{listing.price_period}
             </span>
           </div>
         </div>
+
+        {/* Key Info */}
+        <div className="mb-3 space-y-2">
+          {/* Room Details */}
+          <div className="flex items-center gap-2" style={{ color: COLORS.muted }}>
+            <span className={`${TYPOGRAPHY.bodySmall}`}>
+              {listing.bedrooms} bed {listing.bathrooms} bath
+            </span>
+          </div>
+
+          {/* Distance to School */}
+          {listing.distance_to_campus && (
+            <div className="flex items-center gap-2" style={{ color: COLORS.muted }}>
+              <span className={`${TYPOGRAPHY.bodySmall}`}>
+                📍 {listing.distance_to_campus.toFixed(1)}km to campus
+              </span>
+            </div>
+          )}
+
+          {/* Rating */}
+          {listing.rating && (
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-400">★</span>
+              <span className={`${TYPOGRAPHY.bodySmall}`} style={{ color: COLORS.cream }}>
+                {listing.rating.toFixed(1)}
+              </span>
+              <span className={`${TYPOGRAPHY.caption}`} style={{ color: COLORS.muted }}>
+                ({listing.review_count || 0})
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Department Match Badge */}
+        {listing.department_match && (
+          <motion.div
+            className={`${STYLES.badge} text-xs w-fit`}
+            style={{
+              backgroundColor: `${COLORS.brand}20`,
+              color: COLORS.brand,
+              borderColor: `${COLORS.brand}40`,
+              borderWidth: '1px',
+            }}
+          >
+            📚 {listing.department_match}% for {listing.primary_department}
+          </motion.div>
+        )}
       </div>
-    </motion.article>
+    </motion.div>
   );
 }
