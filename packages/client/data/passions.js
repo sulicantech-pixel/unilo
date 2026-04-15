@@ -1,42 +1,25 @@
-// data/passions.js
-export const PASSIONS = [
-  { id: 'gaming', label: 'Gaming', icon: '🎮', category: 'Entertainment' },
-  { id: 'music', label: 'Music', icon: '🎵', category: 'Entertainment' },
-  { id: 'sports', label: 'Sports', icon: '⚽', category: 'Activity' },
-  { id: 'art', label: 'Art & Design', icon: '🎨', category: 'Creative' },
-  { id: 'study', label: 'Study Groups', icon: '📚', category: 'Academic' },
-  { id: 'coding', label: 'Coding & Tech', icon: '💻', category: 'Academic' },
-  { id: 'photography', label: 'Photography', icon: '📸', category: 'Creative' },
-  { id: 'fitness', label: 'Fitness & Gym', icon: '💪', category: 'Health' },
-  { id: 'cooking', label: 'Cooking', icon: '🍳', category: 'Lifestyle' },
-  { id: 'reading', label: 'Reading & Books', icon: '📖', category: 'Lifestyle' },
-  { id: 'movies', label: 'Movies & TV', icon: '🎬', category: 'Entertainment' },
-  { id: 'dancing', label: 'Dancing', icon: '💃', category: 'Entertainment' },
-  { id: 'entrepreneurship', label: 'Entrepreneurship', icon: '🚀', category: 'Business' },
-  { id: 'volunteering', label: 'Volunteering', icon: '🤝', category: 'Social' },
-  { id: 'travel', label: 'Travel & Adventure', icon: '✈️', category: 'Lifestyle' },
-  { id: 'fashion', label: 'Fashion & Style', icon: '👗', category: 'Lifestyle' },
-  { id: 'debate', label: 'Debate & Discussion', icon: '💬', category: 'Academic' },
-  { id: 'music_production', label: 'Music Production', icon: '🎧', category: 'Creative' },
-  { id: 'writing', label: 'Writing & Blogging', icon: '✍️', category: 'Creative' },
-  { id: 'spirituality', label: 'Spirituality & Wellness', icon: '🧘', category: 'Health' },
-];
+// src/data/passions.js
 
-export const PASSION_CATEGORIES = [
-  'Entertainment',
-  'Activity',
-  'Creative',
-  'Academic',
-  'Health',
-  'Lifestyle',
-  'Business',
-  'Social',
+export const PASSIONS = [
+  { id: 'music', label: 'Music', emoji: '🎵' },
+  { id: 'sports', label: 'Sports', emoji: '⚽' },
+  { id: 'gaming', label: 'Gaming', emoji: '🎮' },
+  { id: 'cooking', label: 'Cooking', emoji: '🍳' },
+  { id: 'reading', label: 'Reading', emoji: '📚' },
+  { id: 'movies', label: 'Movies', emoji: '🎬' },
+  { id: 'travel', label: 'Travel', emoji: '✈️' },
+  { id: 'fitness', label: 'Fitness', emoji: '💪' },
+  { id: 'art', label: 'Art & Design', emoji: '🎨' },
+  { id: 'tech', label: 'Tech', emoji: '💻' },
+  { id: 'fashion', label: 'Fashion', emoji: '👗' },
+  { id: 'faith', label: 'Faith', emoji: '🙏' },
+  { id: 'nature', label: 'Nature', emoji: '🌿' },
+  { id: 'entrepreneurship', label: 'Entrepreneurship', emoji: '🚀' },
+  { id: 'photography', label: 'Photography', emoji: '📷' },
 ];
 
 export const PRIORITY_LEVELS = [
-  { value: 1, label: 'Low', color: '#888' },
-  { value: 2, label: 'Medium', color: '#ff9800' },
-  { value: 3, label: 'High', color: '#ff6b00' },
-  { value: 4, label: 'Very High', color: '#e55f00' },
-  { value: 5, label: 'Essential', color: '#d94600' },
+  { id: 'deal_breaker', label: 'Deal Breaker', color: '#ef4444' },
+  { id: 'important', label: 'Important', color: '#f59e0b' },
+  { id: 'nice_to_have', label: 'Nice to Have', color: '#10b981' },
 ];
