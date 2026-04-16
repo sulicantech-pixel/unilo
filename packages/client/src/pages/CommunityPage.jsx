@@ -72,6 +72,8 @@ export default function CommunityPage() {
           borderColor: `${COMMUNITY_COLORS.primary}30`,
           backdropFilter: 'blur(10px)',
         }}
+        initial="initial"
+        animate="animate"
         variants={ANIMATIONS.slideDownFade}
       >
         <motion.button
@@ -103,6 +105,8 @@ export default function CommunityPage() {
           backgroundColor: `${COMMUNITY_COLORS.primary}08`,
           borderColor: `${COMMUNITY_COLORS.primary}20`,
         }}
+        initial="initial"
+        animate="animate"
         variants={ANIMATIONS.slideDownFade}
       >
         {tabs.map((tab) => (
@@ -126,6 +130,7 @@ export default function CommunityPage() {
 
       {/* ─── CONTENT AREAS ──────────────────────────────────────────────────────── */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+
         {/* EXPLORE TAB */}
         {activeTab === 'explore' && (
           <motion.div
@@ -161,16 +166,18 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Posts */}
-            {posts?.length === 0 ? (
+            {!posts?.posts?.length ? (
               <motion.div
                 className="text-center py-12"
                 variants={ANIMATIONS.slideUpFade}
+                initial="initial"
+                animate="animate"
               >
                 <div className="text-4xl mb-3">📭</div>
                 <p style={{ color: COMMUNITY_COLORS.cream }}>No posts yet</p>
               </motion.div>
             ) : (
-              posts?.map((post, idx) => (
+              posts.posts.map((post) => (
                 <motion.div
                   key={post.id}
                   className={`${STYLES.cardBase} p-4 sm:p-6`}
@@ -182,8 +189,8 @@ export default function CommunityPage() {
                   whileHover={{ y: -2 }}
                 >
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
-                    <div className="flex-1">
+                    <div className="w-10 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className={`${TYPOGRAPHY.body} font-semibold`} style={{ color: COMMUNITY_COLORS.cream }}>
                           {post.author_name}
@@ -196,7 +203,7 @@ export default function CommunityPage() {
                         {post.university}
                       </span>
                     </div>
-                    <span className={`${TYPOGRAPHY.caption}`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
+                    <span className={`${TYPOGRAPHY.caption} flex-shrink-0`} style={{ color: COMMUNITY_COLORS.primaryLight }}>
                       {post.time_ago}
                     </span>
                   </div>
@@ -245,25 +252,27 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Trending Topics */}
-            {trends?.length === 0 ? (
+            {!trends?.trends?.length ? (
               <motion.div
                 className="text-center py-12"
                 variants={ANIMATIONS.slideUpFade}
+                initial="initial"
+                animate="animate"
               >
                 <div className="text-4xl mb-3">📊</div>
                 <p style={{ color: COMMUNITY_COLORS.cream }}>No trends yet</p>
               </motion.div>
             ) : (
-              trends?.map((trend) => (
+              trends.trends.map((trend) => (
                 <motion.div
                   key={trend.id}
-                  className={`${STYLES.cardBase} p-4 sm:p-6 hover:scale-105 cursor-pointer`}
+                  className={`${STYLES.cardBase} p-4 sm:p-6 cursor-pointer`}
                   style={{
                     backgroundColor: `${COMMUNITY_COLORS.primary}08`,
                     borderColor: `${COMMUNITY_COLORS.primary}20`,
                   }}
                   variants={ANIMATIONS.staggerItem}
-                  whileHover={{ y: -2 }}
+                  whileHover={{ y: -2, scale: 1.01 }}
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -303,16 +312,18 @@ export default function CommunityPage() {
               />
             </motion.div>
 
-            {groups?.length === 0 ? (
+            {!groups?.groups?.length ? (
               <motion.div
                 className="text-center py-12"
                 variants={ANIMATIONS.slideUpFade}
+                initial="initial"
+                animate="animate"
               >
                 <div className="text-4xl mb-3">👥</div>
                 <p style={{ color: COMMUNITY_COLORS.cream }}>No groups yet</p>
               </motion.div>
             ) : (
-              groups?.map((group) => (
+              groups.groups.map((group) => (
                 <motion.div
                   key={group.id}
                   className={`${STYLES.cardBase} p-4 sm:p-6`}
@@ -324,8 +335,8 @@ export default function CommunityPage() {
                   whileHover={{ y: -2 }}
                 >
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-lg" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
-                    <div className="flex-1">
+                    <div className="w-12 h-12 rounded-lg flex-shrink-0" style={{ backgroundColor: `${COMMUNITY_COLORS.primary}40` }} />
+                    <div className="flex-1 min-w-0">
                       <h3 className={`${TYPOGRAPHY.h4}`} style={{ color: COMMUNITY_COLORS.cream }}>
                         {group.name}
                       </h3>
@@ -378,7 +389,7 @@ export default function CommunityPage() {
             </motion.div>
 
             {/* Settings */}
-            {['Edit Profile', 'Notifications', 'Blocked Users', 'Sign Out'].map((item, idx) => (
+            {['Edit Profile', 'Notifications', 'Blocked Users', 'Sign Out'].map((item) => (
               <motion.button
                 key={item}
                 className={`w-full ${STYLES.cardBase} p-4 text-left font-medium`}
