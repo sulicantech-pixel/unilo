@@ -135,7 +135,7 @@ export default function QuickListModal({ isOpen, onClose }) {
             >
               <div className="text-xl mb-2">🏠</div>
               <div className="font-semibold">List a Room Space</div>
-              <div className="text-xs text-muted">Self-contain, flat, hostel, etc.</div>
+              <div className="text-xs text-muted">Post a flat, self-contain, or hostel to find a tenant.</div>
             </button>
 
             <button
@@ -143,8 +143,8 @@ export default function QuickListModal({ isOpen, onClose }) {
               className="w-full bg-brand/20 border border-brand/40 hover:bg-brand/30 text-cream p-4 rounded-xl transition"
             >
               <div className="text-xl mb-2">🤝</div>
-              <div className="font-semibold">Find a Roommate</div>
-              <div className="text-xs text-muted">Match by passions & preferences</div>
+              <div className="font-semibold">List a Roommate Space</div>
+              <div className="text-xs text-muted">Find someone to share your room and split the costs.</div>
             </button>
           </div>
 
