@@ -91,6 +91,116 @@ router.get('/', optionalAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/listings/homepage-sections ─── Curated sections for home page ────
+router.get('/homepage-sections', optionalAuth, async (req, res) => {
+  try {
+    const { uni = '', tab = 'all' } = req.query;
+
+    const baseWhere = { status: 'approved' };
+    const include = [
+      { model: Photo, as: 'photos', required: false },
+      { model: User,  as: 'landlord', attributes: ['id', 'name', 'business_name', 'phone'] },
+    ];
+    const order = [
+      ['created_at', 'DESC'],
+      [{ model: Photo, as: 'photos' }, 'order_index', 'ASC'],
+    ];
+
+    // Helper: run a query and return plain objects with cover_photo resolved
+    const fetchSection = async (where, limit = 8) => {
+      const rows = await Listing.findAll({
+        where: { ...baseWhere, ...where },
+        include,
+        order,
+        limit,
+        distinct: true,
+      });
+      return rows.map((l) => {
+        const data   = l.toJSON();
+        const photos = data.photos || [];
+        const cover  = photos.find((p) => p.is_cover) || photos[0] || null;
+        return { ...data, cover_photo: cover };
+      });
+    };
+
+    // Count helper
+    const countWhere = async (where) => {
+      return Listing.count({ where: { ...baseWhere, ...where } });
+    };
+
+    const sections = [];
+
+    if (tab === 'all' || tab === 'trending') {
+      const listings = await fetchSection({}, 8);
+      const total    = await countWhere({});
+      sections.push({
+        id: 'trending',
+        title: 'Trending Now',
+        description: 'Most popular listings this week',
+        icon: '🔥',
+        listings,
+        total_count: total,
+      });
+    }
+
+    if (tab === 'all' || tab === 'on-campus') {
+      // On-campus listings contain the university name in city or address
+      const uniFilter = uni
+        ? {
+            [Op.or]: [
+              { city:    { [Op.iLike]: `%${uni}%` } },
+              { address: { [Op.iLike]: `%${uni}%` } },
+              { description: { [Op.iLike]: `%${uni}%` } },
+            ],
+          }
+        : {};
+      const listings = await fetchSection({ ...uniFilter, type: { [Op.in]: ['hostel'] } }, 8)
+        .then((r) => r.length >= 2 ? r : fetchSection(uniFilter, 8));
+      const total = await countWhere(uniFilter);
+      sections.push({
+        id: 'on-campus',
+        title: 'Near Campus',
+        description: `Rooms close to ${uni || 'your university'}`,
+        icon: '🎓',
+        listings,
+        total_count: total,
+      });
+    }
+
+    if (tab === 'all' || tab === 'off-campus') {
+      const listings = await fetchSection({ is_vacant: true }, 8);
+      const total    = await countWhere({ is_vacant: true });
+      sections.push({
+        id: 'vacant',
+        title: 'Available Now',
+        description: 'Move-in ready rooms',
+        icon: '✅',
+        listings,
+        total_count: total,
+      });
+    }
+
+    if (sections.length === 0) {
+      // Fallback — just return all approved listings in one section
+      const listings = await fetchSection({}, 12);
+      const total    = await countWhere({});
+      sections.push({
+        id: 'all',
+        title: 'All Listings',
+        description: 'Browse all available rooms',
+        icon: '🏠',
+        listings,
+        total_count: total,
+      });
+    }
+
+    res.json(sections);
+  } catch (err) {
+    console.error('[homepage-sections]', err);
+    res.status(500).json({ error: 'Failed to fetch homepage sections' });
+  }
+});
+
 // ── GET /api/listings/:id ─── Public single listing ───────────────────────────
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
