@@ -1,116 +1,166 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { COLORS, ANIMATIONS } from '../utils/designSystem';
 
-const NAV = [
-  {
-    to: '/',
-    label: 'Explore',
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'}
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-    ),
-  },
-  {
-    to: '/wishlist',
-    label: 'Wishlists',
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'}
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-      </svg>
-    ),
-  },
-  {
-    to: '/map',
-    label: 'Map',
-    isCenter: true,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/>
-        <circle cx="12" cy="10" r="3" fill={active ? 'currentColor' : 'none'}/>
-      </svg>
-    ),
-  },
-  {
-    to: '/community',
-    label: 'Community',
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'}
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-        <circle cx="9" cy="7" r="4"/>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
-    ),
-  },
-  {
-    to: '/login',
-    label: 'Profile',
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'}
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-    ),
-  },
+const MAIN_NAV = [
+  { to: '/', icon: '🏠', label: 'Explore', badge: 0 },
+  { to: '/search', icon: '❤️', label: 'Wishlists', badge: 0 },
+  { to: '/map', icon: '📍', label: 'Map', badge: 0 },
+  { to: '/community', icon: '💬', label: 'Community', badge: 3 },
+  { to: '/profile', icon: '👤', label: 'Profile', badge: 0 },
 ];
 
-export default function BottomNav() {
+export default function BottomNav({ onOpenQuickList, inCommunity = false }) {
+  const location = useLocation();
+  const isInCommunity = location.pathname === '/community' || inCommunity;
+
   return (
-    <nav
+    <motion.nav
       className="fixed bottom-0 left-0 right-0 z-50 safe-bottom"
       style={{
-        backgroundColor: 'rgba(10,10,10,0.96)',
-        backdropFilter: 'blur(16px)',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
+        backgroundColor: `${COLORS.navy}dd`,
+        backdropFilter: 'blur(20px)',
+        borderTopColor: COLORS.glassBorder,
+        borderTopWidth: '1px',
       }}
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex items-stretch">
-        {NAV.map(({ to, label, icon, isCenter }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className="flex-1"
+      <div className="flex items-center justify-between px-2 sm:px-4">
+        {MAIN_NAV.map((item, idx) => {
+          const isActive = location.pathname === item.to;
+
+          return (
+            <motion.div
+              key={item.to}
+              className="flex-1 relative"
+              whileHover={{ scale: 1.05 }}
+            >
+              {isActive && (
+                <motion.div
+                  className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                  style={{ backgroundColor: COLORS.brand }}
+                  layoutId="activeTab"
+                  animate={{
+                    boxShadow: [
+                      `0 0 10px ${COLORS.brand}`,
+                      `0 0 20px ${COLORS.brand}`,
+                      `0 0 10px ${COLORS.brand}`,
+                    ],
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              )}
+
+              <NavLink
+                to={item.to}
+                end={item.to === '/'}
+                className={`flex flex-col items-center justify-center py-3 gap-1 relative transition-all duration-200`}
+              >
+                {({ isActive: active }) => (
+                  <>
+                    <motion.div
+                      className="relative text-xl sm:text-2xl"
+                      animate={{
+                        scale: active ? 1.2 : 1,
+                      }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 10 }}
+                    >
+                      {item.icon}
+
+                      {/* Badge */}
+                      {item.badge > 0 && (
+                        <motion.span
+                          className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold"
+                          style={{
+                            backgroundColor: COLORS.brand,
+                            color: COLORS.navy,
+                          }}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{
+                            type: 'spring',
+                            stiffness: 300,
+                          }}
+                        >
+                          {item.badge}
+                        </motion.span>
+                      )}
+                    </motion.div>
+
+                    <span
+                      className={`text-[10px] sm:text-xs font-semibold transition-all duration-200`}
+                      style={{
+                        color: active ? COLORS.brand : COLORS.muted,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+
+                    {/* Active state glow */}
+                    {active && (
+                      <motion.div
+                        className="absolute inset-0 rounded-xl -z-10"
+                        style={{
+                          background: `radial-gradient(circle, ${COLORS.brand}20 0%, transparent 70%)`,
+                        }}
+                        animate={{
+                          opacity: [0.5, 1, 0.5],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </NavLink>
+
+              {/* Hover effect */}
+              <motion.div
+                className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-10 pointer-events-none -z-10"
+                style={{ backgroundColor: COLORS.brand }}
+              />
+            </motion.div>
+          );
+        })}
+
+        {/* Floating ➕ Button (Main Nav) */}
+        {!isInCommunity && (
+          <motion.button
+            onClick={onOpenQuickList}
+            className="absolute -top-8 right-6 w-16 h-16 rounded-full font-bold text-3xl shadow-2xl flex items-center justify-center"
+            style={{
+              backgroundColor: COLORS.brand,
+              color: COLORS.navy,
+              boxShadow: `0 8px 24px ${COLORS.brand}40`,
+            }}
+            whileHover={{
+              scale: 1.1,
+              boxShadow: `0 12px 32px ${COLORS.brand}60`,
+            }}
+            whileTap={{ scale: 0.95 }}
+            animate={{
+              y: [0, -8, 0],
+            }}
+            transition={{
+              y: {
+                duration: 2.5,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              },
+              hover: {
+                duration: 0.2,
+              },
+            }}
+            title="List your space"
           >
-            {({ isActive }) =>
-              isCenter ? (
-                /* Centre FAB — map pin button */
-                <div className="flex flex-col items-center justify-center py-2 -mt-5">
-                  <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-transform active:scale-95"
-                    style={{
-                      backgroundColor: isActive ? '#e55f00' : '#ff6b00',
-                      boxShadow: '0 4px 20px rgba(255,107,0,0.45)',
-                    }}
-                  >
-                    <span style={{ color: '#fff' }}>{icon(isActive)}</span>
-                  </div>
-                  <span
-                    className="text-[9px] mt-1 font-body"
-                    style={{ color: isActive ? '#ff6b00' : 'rgba(255,255,255,0.5)' }}
-                  >
-                    {label}
-                  </span>
-                </div>
-              ) : (
-                <div
-                  className="flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors"
-                  style={{ color: isActive ? '#ff6b00' : 'rgba(255,255,255,0.45)' }}
-                >
-                  {icon(isActive)}
-                  <span className="text-[9px] font-body leading-none">{label}</span>
-                </div>
-              )
-            }
-          </NavLink>
-        ))}
+            ➕
+          </motion.button>
+        )}
       </div>
-    </nav>
+    </motion.nav>
   );
 }
