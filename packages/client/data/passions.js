@@ -1,25 +1,20 @@
-// src/data/passions.js
-
 export const PASSIONS = [
-  { id: 'music', label: 'Music', emoji: '🎵' },
-  { id: 'sports', label: 'Sports', emoji: '⚽' },
-  { id: 'gaming', label: 'Gaming', emoji: '🎮' },
-  { id: 'cooking', label: 'Cooking', emoji: '🍳' },
-  { id: 'reading', label: 'Reading', emoji: '📚' },
-  { id: 'movies', label: 'Movies', emoji: '🎬' },
-  { id: 'travel', label: 'Travel', emoji: '✈️' },
-  { id: 'fitness', label: 'Fitness', emoji: '💪' },
-  { id: 'art', label: 'Art & Design', emoji: '🎨' },
-  { id: 'tech', label: 'Tech', emoji: '💻' },
-  { id: 'fashion', label: 'Fashion', emoji: '👗' },
-  { id: 'faith', label: 'Faith', emoji: '🙏' },
-  { id: 'nature', label: 'Nature', emoji: '🌿' },
-  { id: 'entrepreneurship', label: 'Entrepreneurship', emoji: '🚀' },
-  { id: 'photography', label: 'Photography', emoji: '📷' },
+  { id: 'reading',    emoji: '📚', label: 'Reading' },
+  { id: 'gaming',     emoji: '🎮', label: 'Gaming' },
+  { id: 'cooking',    emoji: '🍳', label: 'Cooking' },
+  { id: 'fitness',    emoji: '💪', label: 'Fitness' },
+  { id: 'music',      emoji: '🎵', label: 'Music' },
+  { id: 'movies',     emoji: '🎬', label: 'Movies' },
+  { id: 'faith',      emoji: '🙏', label: 'Faith' },
+  { id: 'art',        emoji: '🎨', label: 'Art' },
+  { id: 'tech',       emoji: '💻', label: 'Tech' },
+  { id: 'sports',     emoji: '⚽', label: 'Sports' },
+  { id: 'travel',     emoji: '✈️', label: 'Travel' },
+  { id: 'business',   emoji: '📈', label: 'Business' },
 ];
 
 export const PRIORITY_LEVELS = [
-  { id: 'deal_breaker', label: 'Deal Breaker', color: '#ef4444' },
-  { id: 'important', label: 'Important', color: '#f59e0b' },
-  { id: 'nice_to_have', label: 'Nice to Have', color: '#10b981' },
+  { id: 'low',    label: 'Low',    color: '#6b7280' },
+  { id: 'medium', label: 'Med',    color: '#f59e0b' },
+  { id: 'high',   label: 'High',   color: '#ff6b00' },
 ];
