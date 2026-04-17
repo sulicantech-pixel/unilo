@@ -2,288 +2,304 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../lib/api';
 import ListingCard from '../components/ListingCard';
-import { ANIMATIONS, COLORS, STYLES, ICONS, TYPOGRAPHY } from '../utils/designSystem';
+import QuickListModal from '../components/QuickListModal';
+import { ANIMATIONS, COLORS, STYLES, GRID, TYPOGRAPHY } from '../utils/designSystem';
 import { useAuthStore } from '../store/authStore';
 
-const UNIVERSITIES = [
-  'University of Lagos',
-  'Covenant University',
-  'OAU Ile-Ife',
-  'UNIPORT',
-  'UNIZIK',
-  'ABU Zaria',
-  'University of Ibadan',
+const HERO_IMAGE =
+  'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=1400&q=80&auto=format&fit=crop';
+
+const ROOM_TYPES = [
+  { value: '',                  label: 'Any type' },
+  { value: 'self_contain',      label: 'Self Contain' },
+  { value: 'room_and_parlour',  label: 'Room & Parlour' },
+  { value: 'flat',              label: 'Flat' },
+  { value: 'hostel',            label: 'Hostel' },
+  { value: 'bungalow',          label: 'Bungalow' },
+  { value: 'duplex',            label: 'Duplex' },
 ];
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const [selectedUni, setSelectedUni] = useState(() =>
-    localStorage.getItem('selectedUni') || UNIVERSITIES[0]
+  const [selectedUni, setSelectedUni] = useState(
+    () => localStorage.getItem('selectedUni') || 'University of Lagos'
   );
-  const [searchUni, setSearchUni] = useState('');
+  const [universities, setUniversities] = useState([
+    'University of Lagos','Covenant University','OAU Ile-Ife','UNIPORT',
+    'UNIZIK','ABU Zaria','University of Ibadan','FUTA','LASU','LUTH',
+  ]);
+  const [searchUni, setSearchUni]           = useState('');
   const [showUniDropdown, setShowUniDropdown] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab]           = useState('all');
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showQuickList, setShowQuickList]   = useState(false);
   const dropdownRef = useRef(null);
 
-  // Save selected uni
+  const [searchForm, setSearchForm] = useState({
+    search: '', city: '', type: '', min_price: '', max_price: '', bedrooms: '', is_vacant: '',
+  });
+
+  useEffect(() => { localStorage.setItem('selectedUni', selectedUni); }, [selectedUni]);
+
+  // Try to load dynamic university list from backend
   useEffect(() => {
-    localStorage.setItem('selectedUni', selectedUni);
-  }, [selectedUni]);
+    api.get('/universities').then((r) => {
+      if (Array.isArray(r.data) && r.data.length > 0) {
+        setUniversities(r.data.map((u) => (typeof u === 'string' ? u : u.name)));
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Listen for global openQuickList event
+  useEffect(() => {
+    const handler = () => setShowQuickList(true);
+    window.addEventListener('openQuickList', handler);
+    return () => window.removeEventListener('openQuickList', handler);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setShowUniDropdown(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Filter universities based on search
-  const filteredUnis = UNIVERSITIES.filter((uni) =>
-    uni.toLowerCase().includes(searchUni.toLowerCase())
+  const filteredUnis = universities.filter((u) =>
+    u.toLowerCase().includes(searchUni.toLowerCase())
   );
 
-  // Fetch curated sections
   const { data: sections, isLoading } = useQuery({
     queryKey: ['homepage-sections', selectedUni, activeTab],
     queryFn: () =>
-      api
-        .get(`/listings/homepage-sections?uni=${selectedUni}&tab=${activeTab}`)
-        .then((r) => r.data),
+      api.get(`/listings/homepage-sections?uni=${encodeURIComponent(selectedUni)}&tab=${activeTab}`)
+         .then((r) => r.data),
+    retry: false,
   });
 
-  const handleOpenQuickList = () => {
-    window.dispatchEvent(new CustomEvent('openQuickList'));
-  };
-
-  // Tabs
   const tabs = [
-    { id: 'all', label: 'All', icon: ICONS.search },
-    { id: 'trending', label: 'Trending', icon: ICONS.trending },
-    { id: 'on-campus', label: 'On Campus', icon: ICONS.building },
-    { id: 'off-campus', label: 'Off Campus', icon: ICONS.location },
-    { id: 'filters', label: 'Filters', icon: ICONS.filter },
+    { id: 'all',       label: 'All' },
+    { id: 'trending',  label: 'Trending' },
+    { id: 'on-campus', label: 'On Campus' },
+    { id: 'off-campus',label: 'Off Campus' },
+    { id: 'filters',   label: 'Filters' },
   ];
 
+  // Pick distinctive word for hero (skip generic openers)
+  const heroUniName = (() => {
+    const skip = new Set(['university','federal','state','college','of','the','institute']);
+    const w = selectedUni.split(' ').find((x) => !skip.has(x.toLowerCase()));
+    return w || selectedUni.split(' ')[0];
+  })();
+
+  const handleSearch = () => {
+    const p = new URLSearchParams();
+    Object.entries(searchForm).forEach(([k, v]) => { if (v) p.set(k, v); });
+    p.set('uni', selectedUni);
+    navigate(`/search?${p.toString()}`);
+    setShowSearchModal(false);
+  };
+
   return (
-    <main className="min-h-dvh bg-navy pb-32" style={{ backgroundColor: COLORS.navy }}>
-      {/* ─── HERO SECTION ──────────────────────────────────────────────────── */}
-      <motion.section
-        className="relative min-h-[65vh] flex flex-col justify-end px-4 sm:px-6 py-12 sm:py-16 overflow-hidden"
-        initial="initial"
-        animate="animate"
-        variants={ANIMATIONS.staggerContainer}
-      >
-        {/* Animated background gradient */}
-        <div className="absolute inset-0 -z-10 opacity-40">
-          <div
-            className="absolute inset-0"
+    <main className="min-h-dvh pb-nav" style={{ backgroundColor: COLORS.navy }}>
+
+      {/* ── HERO ────────────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[62vh] flex flex-col justify-end overflow-hidden">
+
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-center bg-cover"
+          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
+        />
+        {/* Legibility gradient */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to top, rgba(10,10,10,1) 0%, rgba(10,10,10,0.65) 45%, rgba(10,10,10,0.2) 100%)',
+          }}
+        />
+
+        {/* University selector — top */}
+        <div className="absolute top-0 left-0 right-0 px-4 pt-5 z-20" ref={dropdownRef}>
+          <button
+            onClick={() => setShowUniDropdown(!showUniDropdown)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium"
             style={{
-              backgroundImage: `linear-gradient(135deg, rgba(255,107,0,0.1) 0%, rgba(255,107,0,0.05) 100%)`,
+              backgroundColor: 'rgba(10,10,10,0.65)',
+              backdropFilter: 'blur(12px)',
+              borderColor: COLORS.glassBorder,
+              color: COLORS.cream,
             }}
-          />
-        </div>
+          >
+            <span style={{ color: COLORS.brand }}>🎓</span>
+            <span className="max-w-[220px] truncate">{selectedUni}</span>
+            <span className="ml-1 text-xs opacity-60">▼</span>
+          </button>
 
-        {/* University Selector */}
-        <motion.div
-          className="mb-8 relative"
-          variants={ANIMATIONS.slideDownFade}
-        >
-          <div ref={dropdownRef} className="relative">
-            <button
-              onClick={() => setShowUniDropdown(!showUniDropdown)}
-              className={`${STYLES.cardBase} ${STYLES.cardHover} px-4 py-2.5 w-full sm:w-fit flex items-center gap-2`}
-              style={{ borderColor: COLORS.glassBorder }}
-            >
-              <span style={{ color: COLORS.brand }}>🎓</span>
-              <span className="text-sm sm:text-base font-medium" style={{ color: COLORS.cream }}>
-                {selectedUni.split(' ')[0]}
-              </span>
-              <span style={{ color: COLORS.muted }}>▼</span>
-            </button>
-
-            {/* Dropdown Menu */}
-            <AnimatePresence>
-              {showUniDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`${STYLES.glassEffect} absolute top-full mt-2 w-full sm:w-96 z-50 max-h-64 overflow-hidden flex flex-col`}
-                  style={{
-                    backgroundColor: COLORS.glass,
-                    borderColor: COLORS.glassBorder,
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  {/* Search input */}
+          <AnimatePresence>
+            {showUniDropdown && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.16 }}
+                className="absolute top-full mt-1 left-4 z-50 rounded-2xl overflow-hidden flex flex-col"
+                style={{
+                  width: 'min(92vw, 380px)',
+                  backgroundColor: '#111',
+                  border: `1px solid ${COLORS.glassBorder}`,
+                  boxShadow: '0 24px 48px rgba(0,0,0,0.6)',
+                  maxHeight: '55vh',
+                }}
+              >
+                <div className="p-2 border-b" style={{ borderColor: COLORS.glassBorder }}>
                   <input
+                    autoFocus
                     type="text"
                     placeholder="Search university..."
                     value={searchUni}
                     onChange={(e) => setSearchUni(e.target.value)}
-                    className={`${STYLES.inputBase} m-2 border-0`}
-                    autoFocus
+                    className="input text-sm"
                   />
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  {filteredUnis.length === 0 ? (
+                    <p className="p-4 text-sm text-center" style={{ color: COLORS.muted }}>No match</p>
+                  ) : (
+                    filteredUnis.map((uni) => (
+                      <button
+                        key={uni}
+                        onClick={() => { setSelectedUni(uni); setShowUniDropdown(false); setSearchUni(''); }}
+                        className="w-full text-left px-4 py-3 text-sm flex items-center gap-2 hover:bg-white/5 transition-colors"
+                        style={{ color: selectedUni === uni ? COLORS.brand : COLORS.cream, fontWeight: selectedUni === uni ? '600' : '400' }}
+                      >
+                        {selectedUni === uni && <span style={{ color: COLORS.brand, flexShrink: 0 }}>✓</span>}
+                        {uni}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-                  {/* Scrollable list */}
-                  <div className="overflow-y-auto flex-1">
-                    {filteredUnis.length === 0 ? (
-                      <div className="p-4 text-center" style={{ color: COLORS.muted }}>
-                        No universities found
-                      </div>
-                    ) : (
-                      filteredUnis.map((uni) => (
-                        <motion.button
-                          key={uni}
-                          onClick={() => {
-                            setSelectedUni(uni);
-                            setShowUniDropdown(false);
-                            setSearchUni('');
-                          }}
-                          className="w-full text-left px-4 py-3 transition-all hover:bg-white/10"
-                          whileHover={{ x: 4 }}
-                          style={{
-                            color: selectedUni === uni ? COLORS.brand : COLORS.cream,
-                            fontWeight: selectedUni === uni ? '600' : '400',
-                          }}
-                        >
-                          {selectedUni === uni && '✓ '}
-                          {uni}
-                        </motion.button>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-
-        {/* Hero Title */}
-        <motion.div variants={ANIMATIONS.slideDownFade}>
-          <h1 className={`${TYPOGRAPHY.heroLarge} mb-3 leading-tight`} style={{ color: COLORS.cream }}>
-            Find your room near <br />
+        {/* Hero copy */}
+        <div className="relative z-10 px-4 sm:px-6 pb-10">
+          <motion.h1
+            className="font-display font-bold leading-tight mb-3"
+            style={{ color: COLORS.cream, fontSize: 'clamp(2rem, 8vw, 3.5rem)' }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            Find your room near{' '}
             <motion.span
-              key={selectedUni}
-              initial={{ opacity: 0, y: 10 }}
+              key={heroUniName}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               style={{ color: COLORS.brand }}
             >
-              {selectedUni.split(' ')[0]}
+              {heroUniName}
             </motion.span>
-          </h1>
+          </motion.h1>
 
-          <p className={`${TYPOGRAPHY.body} mb-8`} style={{ color: COLORS.muted }}>
-            Verified rooms • No broker fees • Split rent with Cluster
-          </p>
-
-          <button
-            onClick={() => setShowSearchModal(true)}
-            className={`${STYLES.buttonBase} ${STYLES.buttonPrimary} px-6 py-3 text-base`}
+          <motion.p
+            className="text-sm sm:text-base mb-6"
+            style={{ color: 'rgba(245,240,232,0.72)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
           >
-            🔍 Search Rooms
-          </button>
-        </motion.div>
-      </motion.section>
+            Verified rooms · No broker fees · Split rent with Cluster
+          </motion.p>
 
-      {/* ─── TABS ───────────────────────────────────────────────────────────── */}
-      <motion.div
-        className="sticky top-0 z-30 px-4 sm:px-6 py-3 overflow-x-auto scrollbar-hide"
-        style={{
-          backgroundColor: `${COLORS.navy}99`,
-          backdropFilter: 'blur(10px)',
-          borderBottomColor: COLORS.glassBorder,
-          borderBottomWidth: '1px',
-        }}
-        variants={ANIMATIONS.slideDownFade}
-      >
-        <div className="flex gap-2">
-          {tabs.map((tab) => (
-            <motion.button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              style={{
-                backgroundColor: activeTab === tab.id ? COLORS.brand : COLORS.glass,
-                color: activeTab === tab.id ? COLORS.navy : COLORS.cream,
-                borderColor: activeTab === tab.id ? COLORS.brand : COLORS.glassBorder,
-                borderWidth: '1px',
-              }}
-            >
-              {tab.label}
-            </motion.button>
-          ))}
+          <motion.button
+            onClick={() => setShowSearchModal(true)}
+            className="btn-primary flex items-center gap-2 text-sm px-5 py-3"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.4 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            Search Rooms
+          </motion.button>
         </div>
-      </motion.div>
+      </section>
 
-      {/* ─── SECTIONS (Horizontal Scroll - AirBnB Style) ──────────────────── */}
+      {/* ── TABS ─────────────────────────────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-30 px-4 sm:px-6 py-3 flex gap-2 overflow-x-auto scrollbar-hide border-b"
+        style={{
+          backgroundColor: `${COLORS.navy}ee`,
+          backdropFilter: 'blur(12px)',
+          borderColor: COLORS.glassBorder,
+        }}
+      >
+        {tabs.map((tab) => (
+          <motion.button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 border"
+            whileTap={{ scale: 0.95 }}
+            style={{
+              backgroundColor: activeTab === tab.id ? COLORS.brand : COLORS.glass,
+              color:           activeTab === tab.id ? '#0a0a0a'   : COLORS.cream,
+              borderColor:     activeTab === tab.id ? COLORS.brand : COLORS.glassBorder,
+            }}
+          >
+            {tab.label}
+          </motion.button>
+        ))}
+      </div>
+
+      {/* ── SECTIONS ─────────────────────────────────────────────────────────── */}
       <div className="px-4 sm:px-6 py-8 space-y-10">
         {isLoading ? (
-          // Loading skeletons
           <div className="space-y-8">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="space-y-3"
-                variants={ANIMATIONS.slideUpFade}
-              >
-                <div className="h-8 bg-white/5 rounded-xl w-48 animate-pulse" />
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <div className="h-6 skeleton rounded-xl w-40" />
                 <div className="flex gap-4 overflow-hidden">
-                  {[...Array(4)].map((_, j) => (
-                    <div
-                      key={j}
-                      className="w-56 h-72 bg-white/5 rounded-2xl shrink-0 animate-pulse"
-                      style={{
-                        backgroundImage:
-                          'linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)',
-                        backgroundSize: '200% 100%',
-                        animation: 'shimmer 2s infinite',
-                      }}
-                    />
+                  {[...Array(3)].map((_, j) => (
+                    <div key={j} className="w-52 h-64 skeleton rounded-2xl shrink-0" />
                   ))}
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-        ) : (
+        ) : sections && sections.length > 0 ? (
           <motion.div
             className="space-y-10"
             variants={ANIMATIONS.staggerContainer}
             initial="initial"
             animate="animate"
           >
-            {sections?.map((section, idx) => (
+            {sections.map((section) => (
               <motion.div key={section.id} variants={ANIMATIONS.staggerItem}>
-                {/* Section Header */}
-                <div className="mb-4 sm:mb-6">
-                  <h2 className={`${TYPOGRAPHY.h3} mb-1`} style={{ color: COLORS.cream }}>
+                <div className="mb-4">
+                  <h2 className="font-display font-bold text-lg mb-0.5" style={{ color: COLORS.cream }}>
                     {section.icon} {section.title}
                   </h2>
-                  <p className={`${TYPOGRAPHY.bodySmall}`} style={{ color: COLORS.muted }}>
-                    {section.description}
-                  </p>
+                  <p className="text-xs" style={{ color: COLORS.muted }}>{section.description}</p>
                 </div>
 
-                {/* Horizontal Scroll Container */}
                 <div className="relative">
-                  <div className={STYLES.horizontal}>
-                    {/* Listings */}
+                  <div className={GRID.horizontal}>
                     {section.listings?.slice(0, 8).map((listing, i) => (
                       <motion.div
                         key={listing.id}
-                        className="w-56 shrink-0"
-                        variants={ANIMATIONS.cardHover}
+                        className="w-52 shrink-0"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
@@ -292,141 +308,197 @@ export default function HomePage() {
                       </motion.div>
                     ))}
 
-                    {/* See All Button */}
                     <motion.button
-                      onClick={() =>
-                        navigate(`/search?section=${section.id}&uni=${selectedUni}`)
-                      }
-                      className={`w-56 shrink-0 ${STYLES.cardBase} ${STYLES.cardHover} p-6 flex flex-col items-center justify-center gap-3`}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      onClick={() => navigate(`/search?section=${section.id}&uni=${encodeURIComponent(selectedUni)}`)}
+                      className={`w-52 shrink-0 ${STYLES.cardBase} ${STYLES.cardHover} p-6 flex flex-col items-center justify-center gap-3`}
+                      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                     >
-                      <span className="text-3xl">→</span>
-                      <span className="text-sm font-semibold" style={{ color: COLORS.brand }}>
-                        See All
-                      </span>
-                      <span className={`text-xs`} style={{ color: COLORS.muted }}>
-                        {section.total_count}+ listings
-                      </span>
+                      <span className="text-3xl" style={{ color: COLORS.brand }}>→</span>
+                      <span className="text-sm font-semibold" style={{ color: COLORS.brand }}>See All</span>
+                      {section.total_count > 0 && (
+                        <span className="text-xs" style={{ color: COLORS.muted }}>{section.total_count}+ listings</span>
+                      )}
                     </motion.button>
                   </div>
 
-                  {/* Scroll gradient */}
-                  <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none bg-gradient-to-l from-navy to-transparent" />
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none"
+                    style={{ background: `linear-gradient(to left, ${COLORS.navy}, transparent)` }}
+                  />
                 </div>
               </motion.div>
             ))}
           </motion.div>
+        ) : (
+          <motion.div
+            className="text-center py-16"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="text-5xl mb-4">🏘️</div>
+            <h3 className="font-display font-bold text-lg mb-2" style={{ color: COLORS.cream }}>
+              No listings near {heroUniName} yet
+            </h3>
+            <p className="text-sm mb-6" style={{ color: COLORS.muted }}>
+              Be the first landlord to list here and reach hundreds of students.
+            </p>
+            <button onClick={() => setShowQuickList(true)} className="btn-primary px-6 py-3 text-sm">
+              List a Space
+            </button>
+          </motion.div>
         )}
       </div>
 
-      {/* ─── LIST YOUR SPACE CTA ──────────────────────────────────────────── */}
+      {/* ── LIST YOUR SPACE CTA ───────────────────────────────────────────────── */}
       <motion.div
-        className="mx-4 sm:mx-6 mb-8 relative overflow-hidden rounded-3xl p-6 sm:p-8"
+        className="mx-4 sm:mx-6 mb-8 rounded-3xl p-6 sm:p-8"
         style={{
-          background: `linear-gradient(135deg, ${COLORS.brand}20 0%, ${COLORS.brand}10 100%)`,
-          borderColor: `${COLORS.brand}30`,
-          borderWidth: '1px',
+          background: `linear-gradient(135deg, ${COLORS.brand}18 0%, ${COLORS.brand}08 100%)`,
+          border: `1px solid ${COLORS.brand}25`,
         }}
-        variants={ANIMATIONS.slideUpFade}
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.4 }}
       >
-        {/* Animated background element */}
-        <motion.div
-          className="absolute inset-0 opacity-30"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          style={{
-            background: `radial-gradient(circle at 30% 50%, ${COLORS.brand}, transparent 50%)`,
-          }}
-        />
-
-        <div className="relative flex items-center gap-4 sm:gap-6">
-          <div className="text-4xl sm:text-5xl">🏠</div>
+        <div className="flex items-center gap-4 sm:gap-6">
+          <div className="text-4xl">🏠</div>
           <div className="flex-1 min-w-0">
-            <h3 className={`${TYPOGRAPHY.h4} mb-1`} style={{ color: COLORS.cream }}>
+            <h3 className="font-display font-bold text-base sm:text-lg mb-1" style={{ color: COLORS.cream }}>
               List your space here
             </h3>
-            <p className={`${TYPOGRAPHY.bodySmall}`} style={{ color: COLORS.muted }}>
-              Share your property and reach thousands of students
+            <p className="text-xs sm:text-sm" style={{ color: COLORS.muted }}>
+              No account needed · Reach thousands of students nearby
             </p>
           </div>
           <motion.button
-            onClick={handleOpenQuickList}
-            className={`${STYLES.buttonBase} ${STYLES.buttonPrimary} px-4 sm:px-6 py-2 sm:py-3 shrink-0 text-sm sm:text-base`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowQuickList(true)}
+            className="btn-primary shrink-0 px-5 py-2.5 text-sm whitespace-nowrap"
+            whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
           >
             List Now
           </motion.button>
         </div>
       </motion.div>
 
-      {/* ─── SEARCH MODAL ──────────────────────────────────────────────────── */}
+      {/* ── SEARCH MODAL ─────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {showSearchModal && (
           <motion.div
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setShowSearchModal(false)}
           >
             <motion.div
-              className={`w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden max-h-[90vh] flex flex-col`}
-              style={{ backgroundColor: COLORS.navy, borderColor: COLORS.glassBorder, borderWidth: '1px' }}
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25 }}
+              className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col"
+              style={{ backgroundColor: '#111', border: `1px solid ${COLORS.glassBorder}`, maxHeight: '92vh' }}
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
               <div
                 className="sticky top-0 px-5 py-4 flex items-center justify-between border-b"
-                style={{ borderColor: COLORS.glassBorder }}
+                style={{ backgroundColor: '#111', borderColor: COLORS.glassBorder }}
               >
-                <h2 className={`${TYPOGRAPHY.h4}`} style={{ color: COLORS.cream }}>
+                <h2 className="font-display font-bold text-base" style={{ color: COLORS.cream }}>
                   Search Listings
                 </h2>
-                <motion.button
-                  onClick={() => setShowSearchModal(false)}
-                  className="text-2xl"
-                  whileHover={{ rotate: 90 }}
-                  transition={{ duration: 0.2 }}
-                  style={{ color: COLORS.muted }}
-                >
-                  ✕
-                </motion.button>
+                <button onClick={() => setShowSearchModal(false)} style={{ color: COLORS.muted }} className="text-xl">✕</button>
               </div>
 
-              {/* Form */}
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <p className={`${TYPOGRAPHY.bodySmall}`} style={{ color: COLORS.muted }}>
-                  8 filter options available for precise search
-                </p>
-                {/* Search form would go here */}
+                <div>
+                  <label className="text-xs mb-1.5 block" style={{ color: COLORS.muted }}>Keyword</label>
+                  <input className="input" placeholder="Paradise Gardens, Yaba..." value={searchForm.search}
+                    onChange={(e) => setSearchForm((f) => ({ ...f, search: e.target.value }))} />
+                </div>
+
+                <div>
+                  <label className="text-xs mb-1.5 block" style={{ color: COLORS.muted }}>City / Area</label>
+                  <input className="input" placeholder="Akoka, Ife, Port Harcourt..." value={searchForm.city}
+                    onChange={(e) => setSearchForm((f) => ({ ...f, city: e.target.value }))} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: COLORS.muted }}>Room Type</label>
+                    <select className="input" value={searchForm.type}
+                      onChange={(e) => setSearchForm((f) => ({ ...f, type: e.target.value }))}>
+                      {ROOM_TYPES.map((t) => (
+                        <option key={t.value} value={t.value} style={{ backgroundColor: '#111' }}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs mb-1.5 block" style={{ color: COLORS.muted }}>Bedrooms</label>
+                    <select className="input" value={searchForm.bedrooms}
+                      onChange={(e) => setSearchForm((f) => ({ ...f, bedrooms: e.target.value }))}>
+                      <option value="" style={{ backgroundColor: '#111' }}>Any</option>
+                      {[1,2,3,4].map((n) => (
+                        <option key={n} value={n} style={{ backgroundColor: '#111' }}>{n} bed{n > 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs mb-1.5 block" style={{ color: COLORS.muted }}>Price Range (₦/year)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="input" type="number" placeholder="Min e.g. 100,000" value={searchForm.min_price}
+                      onChange={(e) => setSearchForm((f) => ({ ...f, min_price: e.target.value }))} />
+                    <input className="input" type="number" placeholder="Max e.g. 500,000" value={searchForm.max_price}
+                      onChange={(e) => setSearchForm((f) => ({ ...f, max_price: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs mb-2 block" style={{ color: COLORS.muted }}>Availability</label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: '',      label: 'All' },
+                      { value: 'true',  label: '✅ Vacant' },
+                      { value: 'false', label: 'Taken' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setSearchForm((f) => ({ ...f, is_vacant: opt.value }))}
+                        className="flex-1 py-2 rounded-xl text-sm font-medium border transition-all"
+                        style={{
+                          backgroundColor: searchForm.is_vacant === opt.value ? COLORS.brand : COLORS.glass,
+                          color:           searchForm.is_vacant === opt.value ? '#0a0a0a'   : COLORS.cream,
+                          borderColor:     searchForm.is_vacant === opt.value ? COLORS.brand : COLORS.glassBorder,
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Footer */}
-              <div className="px-5 py-4 flex gap-3 border-t" style={{ borderColor: COLORS.glassBorder }}>
-                <motion.button
-                  onClick={() => setShowSearchModal(false)}
-                  className={`flex-1 ${STYLES.buttonSecondary} py-3`}
-                  whileTap={{ scale: 0.95 }}
+              <div
+                className="sticky bottom-0 px-5 py-4 flex gap-3 border-t"
+                style={{ backgroundColor: '#111', borderColor: COLORS.glassBorder }}
+              >
+                <button
+                  onClick={() => setSearchForm({ search:'',city:'',type:'',min_price:'',max_price:'',bedrooms:'',is_vacant:'' })}
+                  className="btn-ghost py-3 px-4 text-sm"
                 >
-                  Cancel
-                </motion.button>
-                <motion.button
-                  className={`flex-1 ${STYLES.buttonPrimary} py-3`}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  Search
-                </motion.button>
+                  Clear
+                </button>
+                <button onClick={handleSearch} className="btn-primary flex-1 py-3 text-sm">
+                  Search Rooms
+                </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── QUICK LIST MODAL ─────────────────────────────────────────────────── */}
+      <QuickListModal isOpen={showQuickList} onClose={() => setShowQuickList(false)} />
     </main>
   );
 }
