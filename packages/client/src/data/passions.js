@@ -1,0 +1,18 @@
+export const PASSIONS = [
+  { id: 'quiet', label: 'Quiet hours', emoji: '🤫' },
+  { id: 'social', label: 'Social', emoji: '🎉' },
+  { id: 'study', label: 'Study-focused', emoji: '📚' },
+  { id: 'pets', label: 'Pet-friendly', emoji: '🐾' },
+  { id: 'cooking', label: 'Cooking', emoji: '🍳' },
+  { id: 'gym', label: 'Gym/Fitness', emoji: '💪' },
+  { id: 'gaming', label: 'Gaming', emoji: '🎮' },
+  { id: 'music', label: 'Music', emoji: '🎵' },
+];
+
+export const PRIORITY_LEVELS = [
+  { id: 'low', label: 'Low' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'high', label: 'High' },
+];
+
+export default PASSIONS;
