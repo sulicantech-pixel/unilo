@@ -182,7 +182,7 @@ function ReviewCard({ listing, selected, onSelect, onApprove, onReject, approvin
                 📍 {listing.address}, {listing.city} · {fmtPrice(listing.price, listing.price_period)}
               </p>
               <p className="text-muted text-xs mt-0.5">
-                By: <span className="text-cream">{listing.landlord?.business_name || listing.landlord?.name}</span>
+                By: <span className="text-cream">{listing.landlord?.business_name || `${listing.landlord?.first_name || ''} ${listing.landlord?.last_name || ''}`.trim()}</span>
                 {' '}· {listing.landlord?.email}
                 {' '}· Submitted {submittedAt}
               </p>
