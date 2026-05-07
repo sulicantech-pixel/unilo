@@ -201,6 +201,40 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/listings/wishlist ─── Authenticated user's saved listings ─────────
+router.get('/wishlist', authenticate, async (req, res) => {
+  try {
+    const wishlists = await Wishlist.findAll({
+      where: { user_id: req.user.id },
+      include: [
+        {
+          model: Listing,
+          as: 'listing',
+          where: { status: 'approved' },
+          required: true,
+          include: [
+            { model: Photo, as: 'photos', required: false },
+            { model: User, as: 'landlord', attributes: ['id', 'first_name', 'last_name', 'phone', 'whatsapp'] },
+          ],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+    });
+
+    const listings = wishlists.map((w) => {
+      const data   = w.listing.toJSON();
+      const photos = data.photos || [];
+      const cover  = photos.find((p) => p.is_cover) || photos[0] || null;
+      return { ...data, cover_photo: cover, wishlisted: true };
+    });
+
+    res.json(listings);
+  } catch (err) {
+    console.error('[wishlist]', err);
+    res.status(500).json({ error: 'Failed to fetch wishlist' });
+  }
+});
+
 // ── GET /api/listings/:id ─── Public single listing ───────────────────────────
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
