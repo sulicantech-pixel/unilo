@@ -105,7 +105,7 @@ export default function AdminLayout() {
 
         {/* User */}
         <div className="px-5 py-4 border-t border-white/10">
-          <p className="text-cream text-sm font-medium truncate">{user?.name}</p>
+          <p className="text-cream text-sm font-medium truncate">{`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email}</p>
           <p className="text-muted text-xs truncate">{user?.email}</p>
           <button
             onClick={handleLogout}
