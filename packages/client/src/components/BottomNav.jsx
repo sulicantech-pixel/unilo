@@ -1,175 +1,116 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { COLORS } from '../utils/designSystem';
+import { NavLink } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
 
-const NAV_ITEMS = [
-  {
-    to: '/', label: 'Explore', end: true,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-          stroke={active ? COLORS.brand : COLORS.muted}
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          fill={active ? `${COLORS.brand}20` : 'none'} />
-        <path d="M9 22V12h6v10" stroke={active ? COLORS.brand : COLORS.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    to: '/wishlist', label: 'Wishlists', end: false,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
-          stroke={active ? COLORS.brand : COLORS.muted}
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          fill={active ? `${COLORS.brand}30` : 'none'} />
-      </svg>
-    ),
-  },
-  {
-    to: '/map', label: 'Map', end: false,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"
-          stroke={active ? COLORS.brand : COLORS.muted}
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          fill={active ? `${COLORS.brand}20` : 'none'} />
-        <circle cx="12" cy="10" r="3" stroke={active ? COLORS.brand : COLORS.muted} strokeWidth="2"
-          fill={active ? COLORS.brand : 'none'} />
-      </svg>
-    ),
-  },
-  {
-    to: '/community', label: 'Community', end: false,
-    badge: 3,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
-          stroke={active ? COLORS.brand : COLORS.muted}
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          fill={active ? `${COLORS.brand}20` : 'none'} />
-      </svg>
-    ),
-  },
-  {
-    to: '/profile', label: 'Profile', end: false,
-    icon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="8" r="4" stroke={active ? COLORS.brand : COLORS.muted} strokeWidth="2"
-          fill={active ? `${COLORS.brand}20` : 'none'} />
-        <path d="M4 20c0-4 3.582-7 8-7s8 3 8 7"
-          stroke={active ? COLORS.brand : COLORS.muted} strokeWidth="2" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-];
+const BRAND = '#ff6b00';
+const MUTED = 'rgba(255,255,255,0.42)';
 
-export default function BottomNav({ onOpenQuickList, inCommunity = false }) {
-  const location = useLocation();
+// All icons are inline SVG — no external library needed
+const HomeIcon = (filled) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? BRAND : 'none'} stroke={filled ? BRAND : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>
+);
+
+const HeartIcon = (filled) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? BRAND : 'none'} stroke={filled ? BRAND : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+  </svg>
+);
+
+const MapIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/>
+    <circle cx="12" cy="10" r="3" fill="white"/>
+  </svg>
+);
+
+const CommunityIcon = (filled) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? BRAND : 'none'} stroke={filled ? BRAND : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+    <path d="M16 3.13a4 4 0 010 7.75"/>
+  </svg>
+);
+
+const ProfileIcon = (filled) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? BRAND : 'none'} stroke={filled ? BRAND : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+export default function BottomNav({ onOpenQuickList, inCommunity }) {
+  const user = useAuthStore(s => s.user);
+
+  const NavItem = ({ to, icon, label, end: isEnd }) => (
+    <NavLink to={to} end={isEnd} className="flex-1">
+      {({ isActive }) => (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingBottom: 10, gap: 3, color: isActive ? BRAND : MUTED, transition: 'color 0.15s' }}>
+          {icon(isActive)}
+          <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400, fontFamily: 'DM Sans, sans-serif', lineHeight: 1 }}>{label}</span>
+        </div>
+      )}
+    </NavLink>
+  );
 
   return (
-    <motion.nav
-      className="fixed bottom-0 left-0 right-0 z-50"
-      style={{
-        backgroundColor: `${COLORS.navy}ee`,
-        backdropFilter: 'blur(20px)',
-        borderTop: `1px solid ${COLORS.glassBorder}`,
-      }}
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <div className="relative flex items-center justify-around px-2 py-1">
+    <nav style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+      backgroundColor: 'rgba(10,10,10,0.97)',
+      backdropFilter: 'blur(20px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'stretch' }}>
+        <NavItem to="/" icon={HomeIcon} label="Explore" end />
+        <NavItem to="/wishlist" icon={HeartIcon} label="Wishlists" />
 
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className="flex-1"
-          >
-            {({ isActive }) => (
-              <motion.div
-                className="flex flex-col items-center justify-center py-2 gap-0.5 relative"
-                whileTap={{ scale: 0.9 }}
-              >
-                {/* Active dot indicator */}
-                {isActive && (
-                  <motion.div
-                    className="absolute -top-0.5 w-5 h-0.5 rounded-full"
-                    layoutId="activeIndicator"
-                    style={{ backgroundColor: COLORS.brand }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
+        {/* Centre FAB — Map */}
+        <NavLink to="/map" className="flex-1">
+          {({ isActive }) => (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 6 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%', marginTop: -18,
+                backgroundColor: isActive ? '#e55f00' : BRAND,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 20px rgba(255,107,0,0.5)',
+                border: '2px solid rgba(255,255,255,0.15)',
+                transition: 'background-color 0.15s',
+              }}>
+                {MapIcon()}
+              </div>
+              <span style={{ fontSize: 9, color: isActive ? BRAND : MUTED, marginTop: 4, fontFamily: 'DM Sans, sans-serif', fontWeight: isActive ? 600 : 400 }}>Map</span>
+            </div>
+          )}
+        </NavLink>
 
-                {/* Icon + badge wrapper */}
-                <div className="relative">
-                  <motion.div
-                    animate={{ scale: isActive ? 1.1 : 1 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                  >
-                    {item.icon(isActive)}
-                  </motion.div>
+        <NavItem to="/community" icon={CommunityIcon} label="Community" />
 
-                  {/* Badge */}
-                  {item.badge > 0 && (
-                    <div
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold"
-                      style={{ backgroundColor: COLORS.brand, color: '#fff' }}
-                    >
-                      {item.badge}
-                    </div>
-                  )}
+        {/* Profile — shows avatar initial if logged in */}
+        <NavLink to="/profile" className="flex-1">
+          {({ isActive }) => (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingBottom: 10, gap: 3, color: isActive ? BRAND : MUTED, transition: 'color 0.15s' }}>
+              {user ? (
+                <div style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: isActive ? `${BRAND}30` : 'rgba(255,255,255,0.1)',
+                  border: `2px solid ${isActive ? BRAND : 'rgba(255,255,255,0.2)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700,
+                  color: isActive ? BRAND : MUTED,
+                  fontFamily: 'Syne, sans-serif',
+                  transition: 'all 0.15s',
+                }}>
+                  {(user.first_name?.[0] || '').toUpperCase()}
                 </div>
-
-                <span
-                  className="text-[10px] font-medium"
-                  style={{ color: isActive ? COLORS.brand : COLORS.muted }}
-                >
-                  {item.label}
-                </span>
-
-                {/* Active glow */}
-                {isActive && (
-                  <motion.div
-                    className="absolute inset-0 rounded-xl -z-10"
-                    style={{ background: `radial-gradient(circle, ${COLORS.brand}12 0%, transparent 70%)` }}
-                    animate={{ opacity: [0.6, 1, 0.6] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                )}
-              </motion.div>
-            )}
-          </NavLink>
-        ))}
-
-        {/* ➕ Floating List Button — smaller, higher, not covering Profile */}
-        {!inCommunity && (
-          <motion.button
-            onClick={onOpenQuickList}
-            className="absolute right-14 rounded-full flex items-center justify-center shadow-lg"
-            style={{
-              bottom: '52px',          /* floats above the nav */
-              width: '44px',
-              height: '44px',
-              backgroundColor: COLORS.brand,
-              boxShadow: `0 6px 20px ${COLORS.brand}50`,
-            }}
-            whileHover={{ scale: 1.12, boxShadow: `0 8px 28px ${COLORS.brand}70` }}
-            whileTap={{ scale: 0.92 }}
-            animate={{ y: [0, -5, 0] }}
-            transition={{
-              y: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' },
-            }}
-            title="List your space"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"/>
-            </svg>
-          </motion.button>
-        )}
+              ) : ProfileIcon(isActive)}
+              <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400, fontFamily: 'DM Sans, sans-serif', lineHeight: 1 }}>Profile</span>
+            </div>
+          )}
+        </NavLink>
       </div>
-    </motion.nav>
+    </nav>
   );
 }
