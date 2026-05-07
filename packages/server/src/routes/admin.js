@@ -13,7 +13,7 @@ router.get('/pending', async (req, res) => {
       where: { status: 'pending' },
       include: [
         { model: Photo, as: 'photos', where: { is_cover: true }, required: false },
-        { model: User, as: 'landlord', attributes: ['id', 'name', 'email', 'phone', 'business_name'] },
+        { model: User, as: 'landlord', attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'business_name'] },
       ],
       order: [['created_at', 'ASC']],
     });
