@@ -127,7 +127,7 @@ export default function WishlistPage() {
 
       {/* Header */}
       <div style={{ padding: '20px 16px 16px', paddingTop: 'max(20px, env(safe-area-inset-top))', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 800, color: COLORS.cream, margin: 0 }}>Saved Rooms</h1>
+        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 800, color: COLORS.cream, margin: 0 }}>Wishlists</h1>
         {!isLoading && (
           <p style={{ fontSize: 13, color: COLORS.muted, margin: '4px 0 0' }}>
             {listings.length > 0 ? `${listings.length} room${listings.length !== 1 ? 's' : ''} saved` : 'No rooms saved yet'}
