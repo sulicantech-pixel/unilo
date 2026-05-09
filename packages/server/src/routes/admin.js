@@ -1,24 +1,90 @@
-const router = require('express').Router();
+const router      = require('express').Router();
+const bcrypt      = require('bcryptjs');
 const { Listing, User, Transaction, Photo } = require('../models');
-const { authenticate, requireRole } = require('../middleware/auth');
+const { authenticate, requireRole, signToken } = require('../middleware/auth');
 const { QueryTypes } = require('sequelize');
 
-// All admin routes require head_admin
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC: Reset / seed head-admin account (no auth required — call once)
+// POST /api/admin/reset-admin
+// Body: { secret: "unilo-reset-2026", new_password: "yourNewPassword" }
+// ─────────────────────────────────────────────────────────────────────────────
+const RESET_SECRET = 'unilo-reset-2026';
+
+router.post('/reset-admin', async (req, res) => {
+  try {
+    const { secret, new_password, email } = req.body;
+
+    if (secret !== RESET_SECRET) {
+      return res.status(403).json({ error: 'Invalid reset secret' });
+    }
+    if (!new_password || new_password.length < 6) {
+      return res.status(422).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const adminEmail = email || 'admin@unilo.ng';
+
+    // Find or create the head_admin user
+    let admin = await User.findOne({ where: { role: 'head_admin' } });
+
+    if (admin) {
+      // Reset password
+      await admin.update({ password_hash: new_password, is_suspended: false });
+      const token = signToken(admin);
+      return res.json({
+        message: '✅ Admin password reset successfully',
+        email: admin.email,
+        token,
+        user: admin.toSafeJSON(),
+      });
+    }
+
+    // Create head_admin if none exists
+    admin = await User.create({
+      email:         adminEmail,
+      password_hash: new_password,
+      first_name:    'Patrick',
+      last_name:     'Unilo',
+      user_type:     'non_student',
+      is_host:       false,
+      role:          'head_admin',
+    });
+
+    const token = signToken(admin);
+    res.status(201).json({
+      message: '✅ Head admin account created',
+      email:   admin.email,
+      token,
+      user:    admin.toSafeJSON(),
+    });
+  } catch (err) {
+    console.error('[reset-admin]', err);
+    res.status(500).json({ error: err.message || 'Reset failed' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// All routes below require head_admin authentication
+// ─────────────────────────────────────────────────────────────────────────────
 router.use(authenticate, requireRole('head_admin'));
 
-// ── GET /api/admin/pending ─── Listings awaiting approval ─────────────────────
+// ── GET /api/admin/pending ────────────────────────────────────────────────────
 router.get('/pending', async (req, res) => {
   try {
     const listings = await Listing.findAll({
       where: { status: 'pending' },
       include: [
-        { model: Photo, as: 'photos', where: { is_cover: true }, required: false },
-        { model: User, as: 'landlord', attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'business_name'] },
+        { model: Photo, as: 'photos', required: false },
+        {
+          model: User, as: 'landlord',
+          attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'business_name'],
+        },
       ],
       order: [['created_at', 'ASC']],
     });
     res.json(listings);
   } catch (err) {
+    console.error('[pending]', err);
     res.status(500).json({ error: 'Failed to fetch pending listings' });
   }
 });
@@ -41,10 +107,32 @@ router.post('/listings/:id/reject', async (req, res) => {
     const { reason } = req.body;
     const listing = await Listing.findByPk(req.params.id);
     if (!listing) return res.status(404).json({ error: 'Not found' });
-    await listing.update({ status: 'rejected', rejection_reason: reason || 'No reason provided' });
+    await listing.update({
+      status: 'rejected',
+      rejection_reason: reason || 'No reason provided',
+    });
     res.json({ message: 'Listing rejected', listing });
   } catch (err) {
     res.status(500).json({ error: 'Rejection failed' });
+  }
+});
+
+// ── PATCH /api/admin/listings/:id ─── Edit any listing as head_admin ──────────
+router.patch('/listings/:id', async (req, res) => {
+  try {
+    const listing = await Listing.findByPk(req.params.id);
+    if (!listing) return res.status(404).json({ error: 'Not found' });
+    const allowed = [
+      'title', 'description', 'price', 'price_period', 'address', 'city', 'state',
+      'latitude', 'longitude', 'type', 'bedrooms', 'bathrooms', 'amenities',
+      'whatsapp_number', 'youtube_url', 'instagram_url', 'is_vacant', 'status',
+    ];
+    const updates = {};
+    allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    await listing.update(updates);
+    res.json(listing);
+  } catch (err) {
+    res.status(500).json({ error: 'Update failed' });
   }
 });
 
@@ -72,10 +160,9 @@ router.get('/users', async (req, res) => {
       where,
       attributes: { exclude: ['password_hash'] },
       order: [['created_at', 'DESC']],
-      limit: parseInt(limit),
+      limit:  parseInt(limit),
       offset: (parseInt(page) - 1) * parseInt(limit),
     });
-
     res.json({ users: rows, total: count });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -101,40 +188,23 @@ router.post('/users/:id/suspend', async (req, res) => {
 router.get('/finance', async (req, res) => {
   try {
     const { sequelize } = require('../models');
-
     const summary = await sequelize.query(`
       SELECT
-        COALESCE(SUM(gross_amount), 0)        AS total_gross,
-        COALESCE(SUM(commission_amount), 0)   AS total_commission,
-        COALESCE(SUM(landlord_payout), 0)     AS total_payouts,
-        COUNT(*)                               AS transaction_count
-      FROM transactions
-      WHERE status = 'completed'
-    `, { type: QueryTypes.SELECT });
-
-    const byCity = await sequelize.query(`
-      SELECT city, SUM(gross_amount) AS revenue, COUNT(*) AS bookings
-      FROM transactions
-      WHERE status = 'completed'
-      GROUP BY city
-      ORDER BY revenue DESC
-      LIMIT 10
+        COALESCE(SUM(gross_amount), 0)      AS total_gross,
+        COALESCE(SUM(commission_amount), 0) AS total_commission,
+        COALESCE(SUM(landlord_payout), 0)   AS total_payouts,
+        COUNT(*)                             AS transaction_count
+      FROM transactions WHERE status = 'completed'
     `, { type: QueryTypes.SELECT });
 
     const monthly = await sequelize.query(`
-      SELECT
-        DATE_TRUNC('month', created_at) AS month,
-        SUM(gross_amount)               AS revenue
-      FROM transactions
-      WHERE status = 'completed'
-      GROUP BY month
-      ORDER BY month ASC
-      LIMIT 12
+      SELECT DATE_TRUNC('month', created_at) AS month, SUM(gross_amount) AS revenue
+      FROM transactions WHERE status = 'completed'
+      GROUP BY month ORDER BY month ASC LIMIT 12
     `, { type: QueryTypes.SELECT });
 
-    res.json({ summary: summary[0], by_city: byCity, monthly });
+    res.json({ summary: summary[0] || {}, monthly });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Failed to fetch finance data' });
   }
 });
@@ -143,53 +213,17 @@ router.get('/finance', async (req, res) => {
 router.get('/intelligence', async (req, res) => {
   try {
     const { sequelize } = require('../models');
-
-    // Top universities by number of students registered
-    const universities = await sequelize.query(`
-      SELECT
-        u.name,
-        COUNT(DISTINCT us.id) AS student_count,
-        COUNT(DISTINCT l.id) AS listing_count
-      FROM universities u
-      LEFT JOIN users us ON us.university_id = u.id AND us.role = 'viewer'
-      LEFT JOIN listings l ON l.landlord_id = us.id AND l.status = 'approved'
-      GROUP BY u.id, u.name
-      ORDER BY student_count DESC
-      LIMIT 15
-    `, { type: QueryTypes.SELECT });
-
-    // Cluster stats (if Cluster model exists; else return empty)
-    let clusters = [];
-    try {
-      clusters = await sequelize.query(`
-        SELECT
-          COUNT(DISTINCT c.id) AS total_clusters,
-          COUNT(DISTINCT CASE WHEN c.is_enabled = true THEN c.id END) AS active_clusters,
-          COUNT(DISTINCT cm.user_id) AS total_students_in_clusters
-        FROM clusters c
-        LEFT JOIN cluster_memberships cm ON c.id = cm.cluster_id
-      `, { type: QueryTypes.SELECT });
-    } catch (e) {
-      clusters = [{ total_clusters: 0, active_clusters: 0, total_students_in_clusters: 0 }];
-    }
-
-    // Funnel: searches → views → listings
     const funnel = await sequelize.query(`
       SELECT
-        COUNT(*) FILTER (WHERE event_type = 'search') AS total_searches,
+        COUNT(*) FILTER (WHERE event_type = 'search')       AS total_searches,
         COUNT(*) FILTER (WHERE event_type = 'listing_view') AS total_views,
-        COUNT(DISTINCT CASE WHEN event_type = 'listing_view' THEN user_id END) AS unique_viewers,
-        (SELECT COUNT(*) FROM listings WHERE status = 'approved') AS active_listings
+        (SELECT COUNT(*) FROM listings WHERE status = 'approved') AS active_listings,
+        (SELECT COUNT(*) FROM users) AS total_users
       FROM analytics_events
-    `, { type: QueryTypes.SELECT });
+    `, { type: QueryTypes.SELECT }).catch(() => [{}]);
 
-    res.json({
-      universities: universities || [],
-      clusters: clusters[0] || {},
-      funnel: funnel[0] || {},
-    });
+    res.json({ funnel: funnel[0] || {} });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Failed to fetch intelligence data' });
   }
 });
