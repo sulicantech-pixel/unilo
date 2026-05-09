@@ -1,670 +1,376 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+/**
+ * QuickListModal — 3-step listing flow
+ * Step 1: What type + price + city (30 seconds)
+ * Step 2: Contact details
+ * Step 3: Done
+ *
+ * Posts to POST /api/listings/quick (no auth needed)
+ * Listing lands in admin pending queue as status: 'pending'
+ */
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
-import { PASSIONS, PRIORITY_LEVELS } from '../data/passions';
-import { useAuthStore } from '../store/authStore';
+import { COLORS } from '../utils/designSystem';
 
-const ROOM_TYPES = ['self_contain', 'room_and_parlour', 'flat', 'bungalow', 'duplex', 'hostel'];
-const AMENITIES = ['wifi', 'generator', 'water', 'security', 'parking', 'kitchen', 'furnished', 'air_conditioning', 'cctv'];
-const UNIVERSITIES = ['University of Lagos', 'Covenant University', 'OAU Ile-Ife', 'UNIPORT', 'UNIZIK'];
-const CAMPUSES = { 'University of Lagos': ['Main Campus', 'Medical Campus', 'Law Campus'] };
+const ROOM_TYPES = [
+  { value: 'self_contain',     label: 'Self Contain',     icon: '🚪' },
+  { value: 'room_and_parlour', label: 'Room & Parlour',   icon: '🛋️' },
+  { value: 'flat',             label: 'Flat',             icon: '🏢' },
+  { value: 'hostel',           label: 'Hostel/Lodge',     icon: '🏨' },
+  { value: 'bungalow',         label: 'Bungalow',         icon: '🏡' },
+  { value: 'duplex',           label: 'Duplex',           icon: '🏘️' },
+];
 
-const EMPTY_ROOM_FORM = {
-  title: '',
-  type: 'self_contain',
-  bedrooms: 1,
-  bathrooms: 1,
-  price: '',
-  price_period: 'annually',
-  open_for_clusters: false,
-  university: '',
-  campus: '',
-  region: '',
-  map_location: '',
-  youtube_url: '',
-  amenities: [],
-  photos: [],
-  contact_name: '',
-  contact_email: '',
-  contact_phone: '',
-};
+const PRICE_RANGES = [
+  { label: 'Under ₦100k',    value: '80000' },
+  { label: '₦100k – ₦200k', value: '150000' },
+  { label: '₦200k – ₦350k', value: '275000' },
+  { label: '₦350k – ₦500k', value: '425000' },
+  { label: 'Above ₦500k',   value: '600000' },
+  { label: 'I\'ll type it', value: 'custom' },
+];
 
-const EMPTY_ROOMMATE_FORM = {
-  university: '',
-  budget_min: '',
-  budget_max: '',
-  move_in_date: '',
-  passions: [],
-  priorities: {},
-  bio: '',
-  contact_name: '',
-  contact_phone: '',
+const NIGERIAN_STATES = [
+  'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River',
+  'Delta','Ebonyi','Edo','Ekiti','Enugu','FCT Abuja','Gombe','Imo','Jigawa','Kaduna',
+  'Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo',
+  'Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara',
+];
+
+const inputStyle = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  borderRadius: 12,
+  padding: '12px 14px',
+  color: '#f5f0e8',
+  fontSize: 15,
+  fontFamily: 'DM Sans, sans-serif',
+  outline: 'none',
 };
 
 export default function QuickListModal({ isOpen, onClose }) {
-  const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [step,    setStep]    = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
 
-  const [listingType, setListingType] = useState(null);
-  const [step, setStep] = useState(1);
-  const scrollContainerRef = useRef(null);
+  const [form, setForm] = useState({
+    type:          '',
+    price:         '',
+    customPrice:   '',
+    city:          '',
+    state:         '',
+    address:       '',
+    bedrooms:      '1',
+    contact_name:  '',
+    contact_phone: '',
+    whatsapp_number: '',
+  });
 
-  const [form, setForm] = useState(EMPTY_ROOM_FORM);
-  const [roommateForm, setRoommateForm] = useState(EMPTY_ROOMMATE_FORM);
-  const [error, setError] = useState('');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-  const setRoommateField = (key, val) => setRoommateForm((f) => ({ ...f, [key]: val }));
-
-  const toggleAmenity = (a) =>
-    setForm((f) => ({
-      ...f,
-      amenities: f.amenities.includes(a)
-        ? f.amenities.filter((x) => x !== a)
-        : [...f.amenities, a],
-    }));
-
-  const togglePassion = (id) =>
-    setRoommateForm((f) => ({
-      ...f,
-      passions: f.passions.includes(id)
-        ? f.passions.filter((x) => x !== id)
-        : [...f.passions, id],
-    }));
-
-  const handlePhotoChange = (e) => {
-    const files = Array.from(e.target.files).slice(0, 20);
-    setForm((f) => ({ ...f, photos: files }));
-  };
-
-  const handleClose = () => {
-    setListingType(null);
+  const reset = () => {
     setStep(1);
-    setForm(EMPTY_ROOM_FORM);
-    setRoommateForm(EMPTY_ROOMMATE_FORM);
     setError('');
-    onClose();
+    setForm({ type:'',price:'',customPrice:'',city:'',state:'',address:'',bedrooms:'1',contact_name:'',contact_phone:'',whatsapp_number:'' });
   };
 
-  // ─── MUTATIONS ───────────────────────────────────────────────────────────────
-  const createListing = useMutation({
-    mutationFn: async () => {
-      const formData = new FormData();
-      Object.entries(form).forEach(([key, val]) => {
-        if (key === 'photos') {
-          val.forEach((p) => formData.append('photos', p));
-        } else if (key === 'amenities') {
-          formData.append(key, JSON.stringify(val));
-        } else {
-          formData.append(key, val);
-        }
+  const handleClose = () => { reset(); onClose(); };
+
+  const canStep1 = form.type && (form.price !== '' && form.price !== 'custom' || form.customPrice) && form.city;
+  const canStep2 = form.contact_name.trim() && form.contact_phone.trim();
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const price = form.price === 'custom' ? parseFloat(form.customPrice) : parseFloat(form.price);
+      await api.post('/listings/quick', {
+        title:           `${form.type.replace(/_/g,' ')} in ${form.city}`,
+        type:            form.type,
+        price,
+        price_period:    'annually',
+        city:            form.city,
+        state:           form.state,
+        address:         form.address || form.city,
+        bedrooms:        parseInt(form.bedrooms),
+        bathrooms:       1,
+        contact_name:    form.contact_name,
+        contact_phone:   form.contact_phone,
+        whatsapp_number: form.whatsapp_number || form.contact_phone,
       });
-      return api.post('/listings/quick', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    },
-    onSuccess: () => setStep(3),
-    onError: (err) => setError(err.response?.data?.error || 'Failed to create listing'),
-  });
+      setStep(3);
+    } catch (err) {
+      setError(err.response?.data?.error || err.response?.data?.message || 'Submission failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const createRoommate = useMutation({
-    mutationFn: async () =>
-      api.post('/roommates/quick', roommateForm),
-    onSuccess: () => setStep(3),
-    onError: (err) => setError(err.response?.data?.error || 'Failed to submit roommate request'),
-  });
+  const stepLabels = ['Details', 'Contact', 'Done'];
 
-  if (!isOpen) return null;
-
-  // ─── STEP 1: TYPE SELECTION ───────────────────────────────────────────────────
-  if (!listingType) {
-    return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full">
-          <h2 className="font-display font-bold text-2xl text-cream mb-2">
-            What do you want to list?
-          </h2>
-          <p className="text-muted text-sm mb-6">Choose one to get started in 2 clicks.</p>
-
-          <div className="space-y-3">
-            <button
-              onClick={() => { setListingType('room'); setStep(2); }}
-              className="w-full bg-brand/20 border border-brand/40 hover:bg-brand/30 text-cream p-4 rounded-xl transition"
-            >
-              <div className="text-xl mb-2">🏠</div>
-              <div className="font-semibold">List a Room Space</div>
-              <div className="text-xs text-muted">Post a flat, self-contain, or hostel to find a tenant.</div>
-            </button>
-
-            <button
-              onClick={() => { setListingType('roommate'); setStep(2); }}
-              className="w-full bg-brand/20 border border-brand/40 hover:bg-brand/30 text-cream p-4 rounded-xl transition"
-            >
-              <div className="text-xl mb-2">🤝</div>
-              <div className="font-semibold">List a Roommate Space</div>
-              <div className="text-xs text-muted">Find someone to share your room and split the costs.</div>
-            </button>
-          </div>
-
-          <button onClick={handleClose} className="w-full mt-4 text-muted hover:text-cream">
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── ROOMMATE FLOW ───────────────────────────────────────────────────────────
-  if (listingType === 'roommate' && step === 2) {
-    return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="bg-navy-800 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="sticky top-0 bg-navy-800 border-b border-white/10 px-5 py-4 flex items-center justify-between">
-            <h2 className="font-display font-semibold text-cream">Find a Roommate</h2>
-            <button onClick={handleClose} className="text-muted hover:text-cream text-xl">✕</button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            {/* University */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">University *</label>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm"
-                value={roommateForm.university}
-                onChange={(e) => setRoommateField('university', e.target.value)}
-              >
-                <option value="">Select university...</option>
-                {UNIVERSITIES.map((u) => (
-                  <option key={u} value={u} className="bg-navy-900">{u}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Budget */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Min Budget (₦)</label>
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                  type="number"
-                  placeholder="100000"
-                  value={roommateForm.budget_min}
-                  onChange={(e) => setRoommateField('budget_min', e.target.value)}
-                />
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 520,
+              background: '#111',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '24px 24px 0 0',
+              maxHeight: '92vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 18, fontWeight: 800, color: COLORS.cream, margin: 0 }}>
+                  {step === 3 ? '🎉 Submitted!' : 'List a Space'}
+                </h2>
+                <button onClick={handleClose}
+                  style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  ✕
+                </button>
               </div>
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Max Budget (₦)</label>
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                  type="number"
-                  placeholder="300000"
-                  value={roommateForm.budget_max}
-                  onChange={(e) => setRoommateField('budget_max', e.target.value)}
-                />
-              </div>
-            </div>
 
-            {/* Move-in date */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">Move-in Date</label>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                type="date"
-                value={roommateForm.move_in_date}
-                onChange={(e) => setRoommateField('move_in_date', e.target.value)}
-              />
-            </div>
-
-            {/* Passions */}
-            <div>
-              <label className="text-xs text-muted block mb-2">Your Passions</label>
-              <div className="flex flex-wrap gap-2">
-                {PASSIONS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => togglePassion(p.id)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition ${
-                      roommateForm.passions.includes(p.id)
-                        ? 'bg-brand/20 text-brand border-brand/40'
-                        : 'bg-white/5 text-muted border-white/10'
-                    }`}
-                  >
-                    {p.emoji} {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Priorities */}
-            <div>
-              <label className="text-xs text-muted block mb-2">Roommate Priorities</label>
-              <div className="space-y-2">
-                {['Quiet hours', 'Cleanliness', 'Guests allowed', 'Shared meals'].map((pref) => (
-                  <div key={pref} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-                    <span className="text-sm text-cream">{pref}</span>
-                    <div className="flex gap-1">
-                      {PRIORITY_LEVELS.map((level) => (
-                        <button
-                          key={level.id}
-                          onClick={() =>
-                            setRoommateForm((f) => ({
-                              ...f,
-                              priorities: { ...f.priorities, [pref]: level.id },
-                            }))
-                          }
-                          className="text-[10px] px-2 py-0.5 rounded-full border transition"
-                          style={{
-                            backgroundColor:
-                              roommateForm.priorities[pref] === level.id
-                                ? `${level.color}30`
-                                : 'transparent',
-                            borderColor:
-                              roommateForm.priorities[pref] === level.id
-                                ? level.color
-                                : 'rgba(255,255,255,0.1)',
-                            color:
-                              roommateForm.priorities[pref] === level.id
-                                ? level.color
-                                : 'rgba(255,255,255,0.4)',
-                          }}
-                        >
-                          {level.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bio */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">About You</label>
-              <textarea
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm resize-none"
-                rows={3}
-                placeholder="Tell potential roommates a bit about yourself..."
-                value={roommateForm.bio}
-                onChange={(e) => setRoommateField('bio', e.target.value)}
-              />
-            </div>
-
-            {/* Contact */}
-            <div className="border-t border-white/10 pt-4">
-              <h3 className="text-sm font-semibold text-cream mb-3">Contact Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Name *</label>
-                  <input
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                    placeholder="John Doe"
-                    value={roommateForm.contact_name}
-                    onChange={(e) => setRoommateField('contact_name', e.target.value)}
-                  />
+              {/* Step dots */}
+              {step < 3 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {stepLabels.slice(0, 2).map((label, i) => {
+                    const n = i + 1;
+                    const done    = step > n;
+                    const current = step === n;
+                    return (
+                      <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{
+                            width: 22, height: 22, borderRadius: '50%', fontSize: 11, fontWeight: 700,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: done ? COLORS.brand : current ? COLORS.brand : 'rgba(255,255,255,0.1)',
+                            color: done || current ? '#fff' : 'rgba(255,255,255,0.4)',
+                            transition: 'all 0.2s',
+                          }}>
+                            {done ? '✓' : n}
+                          </div>
+                          <span style={{ fontSize: 12, color: current ? COLORS.cream : 'rgba(255,255,255,0.35)', fontWeight: current ? 600 : 400 }}>{label}</span>
+                        </div>
+                        {i < 1 && <div style={{ flex: 1, height: 1, background: done ? COLORS.brand : 'rgba(255,255,255,0.1)', minWidth: 20, transition: 'background 0.3s' }} />}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Phone *</label>
-                  <input
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                    placeholder="+234 801 234 5678"
-                    value={roommateForm.contact_phone}
-                    onChange={(e) => setRoommateField('contact_phone', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {error && <p className="text-danger text-sm bg-danger/10 p-3 rounded">{error}</p>}
-          </div>
-
-          <div className="sticky bottom-0 bg-navy-800 border-t border-white/10 px-5 py-4 flex gap-3">
-            <button
-              onClick={() => { setListingType(null); setStep(1); }}
-              className="flex-1 bg-white/5 hover:bg-white/10 text-cream rounded-lg py-2"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => createRoommate.mutate()}
-              disabled={
-                createRoommate.isPending ||
-                !roommateForm.university ||
-                !roommateForm.contact_name ||
-                !roommateForm.contact_phone
-              }
-              className="flex-1 bg-brand hover:bg-brand/90 text-navy font-semibold rounded-lg py-2 disabled:opacity-50"
-            >
-              {createRoommate.isPending ? 'Submitting...' : 'Find Roommate'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── ROOM SPACE FLOW ─────────────────────────────────────────────────────────
-  if (listingType === 'room' && step === 2) {
-    return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div className="bg-navy-800 border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="sticky top-0 bg-navy-800 border-b border-white/10 px-5 py-4 flex items-center justify-between">
-            <h2 className="font-display font-semibold text-cream">List a Room Space</h2>
-            <button onClick={handleClose} className="text-muted hover:text-cream text-xl">✕</button>
-          </div>
-
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4">
-            <div>
-              <label className="text-xs text-muted block mb-1.5">Lodge Name *</label>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                placeholder="e.g. Paradise Gardens"
-                value={form.title}
-                onChange={(e) => setField('title', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted block mb-1.5">Room Number</label>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                placeholder="e.g. 12A"
-                value={form.region}
-                onChange={(e) => setField('region', e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Type *</label>
-                <select
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
-                  value={form.type}
-                  onChange={(e) => setField('type', e.target.value)}
-                >
-                  {ROOM_TYPES.map((t) => (
-                    <option key={t} value={t} className="bg-navy-900">
-                      {t.replace(/_/g, ' ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Beds</label>
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream"
-                  type="number"
-                  min="1"
-                  value={form.bedrooms}
-                  onChange={(e) => setField('bedrooms', parseInt(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Baths</label>
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream"
-                  type="number"
-                  min="1"
-                  value={form.bathrooms}
-                  onChange={(e) => setField('bathrooms', parseInt(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Rent (₦) *</label>
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                  type="number"
-                  placeholder="350000"
-                  value={form.price}
-                  onChange={(e) => setField('price', e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Period</label>
-                <select
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
-                  value={form.price_period}
-                  onChange={(e) => setField('price_period', e.target.value)}
-                >
-                  <option value="monthly" className="bg-navy-900">Per Month</option>
-                  <option value="annually" className="bg-navy-900">Per Year</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg">
-              <input
-                type="checkbox"
-                id="clusters"
-                checked={form.open_for_clusters}
-                onChange={(e) => setField('open_for_clusters', e.target.checked)}
-                className="w-5 h-5 accent-brand"
-              />
-              <label htmlFor="clusters" className="text-sm text-cream cursor-pointer">
-                Open for Clusters (roommate matching)
-              </label>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted block mb-1.5">University *</label>
-                <select
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
-                  value={form.university}
-                  onChange={(e) => setField('university', e.target.value)}
-                >
-                  <option value="">Select...</option>
-                  {UNIVERSITIES.map((u) => (
-                    <option key={u} value={u} className="bg-navy-900">{u}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted block mb-1.5">Campus</label>
-                <select
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-cream text-sm"
-                  value={form.campus}
-                  onChange={(e) => setField('campus', e.target.value)}
-                >
-                  <option value="">Any campus</option>
-                  {form.university &&
-                    CAMPUSES[form.university]?.map((c) => (
-                      <option key={c} value={c} className="bg-navy-900">{c}</option>
-                    ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-muted block mb-1.5">📍 Location on Map *</label>
-              <div className="w-full h-40 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center text-muted text-sm mb-2">
-                [Map Picker — Click to select]
-              </div>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream text-sm"
-                placeholder="Or paste Google Maps link"
-                value={form.map_location}
-                onChange={(e) => setField('map_location', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted block mb-2">Amenities</label>
-              <div className="flex flex-wrap gap-2">
-                {AMENITIES.map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => toggleAmenity(a)}
-                    className={`badge text-xs px-2 py-1 rounded-full border transition ${
-                      form.amenities.includes(a)
-                        ? 'bg-brand/20 text-brand border-brand/40'
-                        : 'bg-white/5 text-muted border-white/10'
-                    }`}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-muted block mb-1.5">🎥 YouTube Tour Link</label>
-              <input
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                placeholder="https://youtu.be/..."
-                value={form.youtube_url}
-                onChange={(e) => setField('youtube_url', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-muted block mb-1.5">📸 Photos (1–20)</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="text-sm text-muted w-full"
-              />
-              {form.photos.length > 0 && (
-                <p className="text-brand text-xs mt-1">{form.photos.length} photo(s) selected</p>
               )}
             </div>
 
-            {/* Contact Information */}
-            <div className="border-t border-white/10 pt-4 mt-2">
-              <h3 className="text-sm font-semibold text-cream mb-3">Your Contact Information</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Name *</label>
-                  <input
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                    placeholder="John Doe"
-                    value={form.contact_name}
-                    onChange={(e) => setField('contact_name', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Email *</label>
-                  <input
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={form.contact_email}
-                    onChange={(e) => setField('contact_email', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted block mb-1.5">Phone *</label>
-                  <input
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream"
-                    placeholder="+234 801 234 5678"
-                    value={form.contact_phone}
-                    onChange={(e) => setField('contact_phone', e.target.value)}
-                  />
-                </div>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+              <AnimatePresence mode="wait">
+
+                {/* ── STEP 1: Room type + price + city ───────────────────── */}
+                {step === 1 && (
+                  <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                    <p style={{ fontSize: 13, color: COLORS.muted, marginBottom: 18, lineHeight: 1.5 }}>
+                      Tell us about your space. Takes under 60 seconds.
+                    </p>
+
+                    {/* Room type */}
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Type of space *</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
+                      {ROOM_TYPES.map(t => (
+                        <button key={t.value} onClick={() => set('type', t.value)}
+                          style={{
+                            padding: '12px 8px', borderRadius: 14, border: `1.5px solid ${form.type === t.value ? COLORS.brand : 'rgba(255,255,255,0.09)'}`,
+                            background: form.type === t.value ? `${COLORS.brand}18` : 'rgba(255,255,255,0.03)',
+                            color: form.type === t.value ? COLORS.brand : COLORS.cream,
+                            cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
+                          }}>
+                          <div style={{ fontSize: 22, marginBottom: 5 }}>{t.icon}</div>
+                          <div style={{ fontSize: 11, fontWeight: 500, lineHeight: 1.2 }}>{t.label}</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Price */}
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Rent (per year) *</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: form.price === 'custom' ? 10 : 20 }}>
+                      {PRICE_RANGES.map(p => (
+                        <button key={p.value} onClick={() => set('price', p.value)}
+                          style={{
+                            padding: '11px 8px', borderRadius: 12, border: `1.5px solid ${form.price === p.value ? COLORS.brand : 'rgba(255,255,255,0.09)'}`,
+                            background: form.price === p.value ? `${COLORS.brand}18` : 'rgba(255,255,255,0.03)',
+                            color: form.price === p.value ? COLORS.brand : COLORS.cream,
+                            cursor: 'pointer', fontSize: 13, fontWeight: 500, transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
+                          }}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    {form.price === 'custom' && (
+                      <div style={{ marginBottom: 20 }}>
+                        <input style={inputStyle} type="number" placeholder="Enter exact amount e.g. 320000"
+                          value={form.customPrice} onChange={e => set('customPrice', e.target.value)} autoFocus />
+                      </div>
+                    )}
+
+                    {/* City + State */}
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Location *</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      <input style={inputStyle} placeholder="City / Town *" value={form.city} onChange={e => set('city', e.target.value)} />
+                      <select value={form.state} onChange={e => set('state', e.target.value)}
+                        style={{ ...inputStyle, cursor: 'pointer' }}>
+                        <option value="">State</option>
+                        {NIGERIAN_STATES.map(s => <option key={s} value={s} style={{ background: '#111' }}>{s}</option>)}
+                      </select>
+                    </div>
+                    <input style={{ ...inputStyle, marginBottom: 20 }} placeholder="Street address (optional)" value={form.address} onChange={e => set('address', e.target.value)} />
+
+                    {/* Bedrooms */}
+                    <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Bedrooms</p>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      {['1', '2', '3', '4', '5+'].map(n => (
+                        <button key={n} onClick={() => set('bedrooms', n)}
+                          style={{
+                            flex: 1, padding: '10px 0', borderRadius: 11, border: `1.5px solid ${form.bedrooms === n ? COLORS.brand : 'rgba(255,255,255,0.09)'}`,
+                            background: form.bedrooms === n ? `${COLORS.brand}18` : 'rgba(255,255,255,0.03)',
+                            color: form.bedrooms === n ? COLORS.brand : COLORS.cream,
+                            cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.15s', fontFamily: 'DM Sans, sans-serif',
+                          }}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── STEP 2: Contact ────────────────────────────────────── */}
+                {step === 2 && (
+                  <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                    <p style={{ fontSize: 13, color: COLORS.muted, marginBottom: 20, lineHeight: 1.5 }}>
+                      How should we reach you? Your info stays private and only goes to the Unilo team for review.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Your name *</p>
+                        <input style={inputStyle} placeholder="Full name" value={form.contact_name} onChange={e => set('contact_name', e.target.value)} autoFocus />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Phone number *</p>
+                        <input style={inputStyle} type="tel" placeholder="+234 800 000 0000" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>WhatsApp <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.25)' }}>(if different)</span></p>
+                        <input style={inputStyle} type="tel" placeholder="Same as phone if blank" value={form.whatsapp_number} onChange={e => set('whatsapp_number', e.target.value)} />
+                      </div>
+
+                      {/* Summary */}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '14px 16px', marginTop: 4 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: COLORS.muted, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Your listing summary</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: COLORS.muted }}>Type</span>
+                            <span style={{ color: COLORS.cream, fontWeight: 500 }}>{form.type.replace(/_/g,' ')}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: COLORS.muted }}>Location</span>
+                            <span style={{ color: COLORS.cream, fontWeight: 500 }}>{form.city}{form.state ? `, ${form.state}` : ''}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: COLORS.muted }}>Rent</span>
+                            <span style={{ color: COLORS.brand, fontWeight: 700 }}>
+                              ₦{Number(form.price === 'custom' ? form.customPrice : form.price).toLocaleString()}/yr
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: COLORS.muted }}>Bedrooms</span>
+                            <span style={{ color: COLORS.cream, fontWeight: 500 }}>{form.bedrooms}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {error && (
+                        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: '#f87171' }}>
+                          {error}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ── STEP 3: Done ──────────────────────────────────────── */}
+                {step === 3 && (
+                  <motion.div key="s3" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25 }}
+                    style={{ textAlign: 'center', padding: '20px 0 10px' }}>
+                    <div style={{ fontSize: 56, marginBottom: 16 }}>🏠</div>
+                    <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: 20, fontWeight: 800, color: COLORS.cream, margin: '0 0 10px' }}>
+                      Listing submitted!
+                    </h3>
+                    <p style={{ fontSize: 14, color: COLORS.muted, lineHeight: 1.7, maxWidth: 280, margin: '0 auto 20px' }}>
+                      The Unilo team will review your listing and make it live within <strong style={{ color: COLORS.cream }}>24 hours</strong>. We'll contact you on <strong style={{ color: COLORS.cream }}>{form.contact_phone}</strong>.
+                    </p>
+                    <div style={{ background: `${COLORS.brand}12`, border: `1px solid ${COLORS.brand}25`, borderRadius: 14, padding: '14px 18px', marginBottom: 20, textAlign: 'left' }}>
+                      <p style={{ fontSize: 12, color: COLORS.muted, marginBottom: 6 }}>What happens next:</p>
+                      {['Unilo team receives your listing', 'We review, edit details if needed', 'Listing goes live to thousands of students'].map((s, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 8, fontSize: 13, color: COLORS.cream }}>
+                          <span style={{ color: COLORS.brand, fontWeight: 700, flexShrink: 0 }}>{i+1}.</span> {s}
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={handleClose}
+                      style={{ width: '100%', background: COLORS.brand, color: '#fff', border: 'none', borderRadius: 14, padding: '14px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                      Done
+                    </button>
+                    <button onClick={() => { reset(); }}
+                      style={{ width: '100%', background: 'none', border: 'none', color: COLORS.muted, fontSize: 13, cursor: 'pointer', marginTop: 12, fontFamily: 'DM Sans, sans-serif' }}>
+                      Submit another listing
+                    </button>
+                  </motion.div>
+                )}
+
+              </AnimatePresence>
+            </div>
+
+            {/* Footer buttons */}
+            {step < 3 && (
+              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 12, flexShrink: 0 }}>
+                {step === 2 && (
+                  <button onClick={() => setStep(1)}
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: COLORS.cream, borderRadius: 12, padding: '13px 20px', fontSize: 14, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', flexShrink: 0 }}>
+                    ← Back
+                  </button>
+                )}
+                <button
+                  onClick={step === 1 ? () => setStep(2) : handleSubmit}
+                  disabled={(step === 1 && !canStep1) || (step === 2 && !canStep2) || loading}
+                  style={{
+                    flex: 1, background: ((step === 1 && !canStep1) || (step === 2 && !canStep2)) ? 'rgba(255,107,0,0.3)' : COLORS.brand,
+                    color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 15, fontWeight: 700,
+                    cursor: ((step === 1 && !canStep1) || (step === 2 && !canStep2)) ? 'not-allowed' : 'pointer',
+                    fontFamily: 'DM Sans, sans-serif', transition: 'background 0.15s',
+                  }}>
+                  {loading ? 'Submitting…' : step === 1 ? 'Next →' : 'Submit Listing'}
+                </button>
               </div>
-            </div>
-
-            {error && <p className="text-danger text-sm bg-danger/10 p-3 rounded">{error}</p>}
-          </div>
-
-          <div className="sticky bottom-0 bg-navy-800 border-t border-white/10 px-5 py-4 flex gap-3">
-            <button
-              onClick={() => { setListingType(null); setStep(1); }}
-              className="flex-1 bg-white/5 hover:bg-white/10 text-cream rounded-lg py-2"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => createListing.mutate()}
-              disabled={
-                createListing.isPending ||
-                !form.title ||
-                !form.price ||
-                !form.university ||
-                !form.contact_name ||
-                !form.contact_email ||
-                !form.contact_phone
-              }
-              className="flex-1 bg-brand hover:bg-brand/90 text-navy font-semibold rounded-lg py-2 disabled:opacity-50"
-            >
-              {createListing.isPending ? 'Submitting...' : 'Submit Listing'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── SUCCESS SCREEN ───────────────────────────────────────────────────────────
-  if (step === 3) {
-    const isHostRegistered = isAuthenticated && user?.role === 'user_admin';
-
-    const handleReset = () => {
-      setStep(1);
-      setListingType(null);
-      setForm(EMPTY_ROOM_FORM);
-      setRoommateForm(EMPTY_ROOMMATE_FORM);
-      setError('');
-      onClose();
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center">
-          <div className="text-5xl mb-4">✅</div>
-          <h2 className="font-display font-bold text-2xl text-cream mb-2">
-            {listingType === 'roommate' ? 'Request submitted!' : 'Listing submitted!'}
-          </h2>
-          <p className="text-muted mb-4">
-            {listingType === 'roommate'
-              ? "We'll match you with compatible roommates and reach out within 24 hours."
-              : "Your listing has been sent to Unilo for verification. We'll review it within 24 hours."}
-          </p>
-          <p className="text-muted text-sm mb-6">
-            📱 We'll contact you at:{' '}
-            <span className="text-cream font-medium">
-              {listingType === 'roommate' ? roommateForm.contact_phone : form.contact_phone}
-            </span>
-          </p>
-
-          {!isHostRegistered && listingType === 'room' ? (
-            <div className="space-y-3">
-              <p className="text-muted text-sm">
-                To manage your listings and earnings, register as a host:
-              </p>
-              <button
-                onClick={() => { onClose(); navigate('/become-host'); }}
-                className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-2 rounded-lg transition"
-              >
-                Become a Host
-              </button>
-              <button
-                onClick={handleReset}
-                className="w-full bg-white/5 hover:bg-white/10 text-cream py-2 rounded-lg"
-              >
-                Later
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleReset}
-              className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-2 rounded-lg"
-            >
-              Done
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
