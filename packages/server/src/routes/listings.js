@@ -344,7 +344,7 @@ router.post('/quick', async (req, res) => {
   }
 });
 
-// ── POST /api/listings ─── Authenticated landlord creates listing ──────────────
+// ── POST /api/listings ─── Authenticated landlord or admin creates listing ──────
 router.post('/', authenticate, requireRole('user_admin', 'head_admin'), async (req, res) => {
   try {
     const {
@@ -352,7 +352,12 @@ router.post('/', authenticate, requireRole('user_admin', 'head_admin'), async (r
       address, city, state, latitude, longitude,
       type, bedrooms, bathrooms, amenities,
       youtube_url, whatsapp_number, instagram_url,
+      is_vacant,
     } = req.body;
+
+    // head_admin listings skip straight to pending (ready for their own approval queue)
+    // user_admin (landlord) listings start as draft until they explicitly submit
+    const initialStatus = req.user.role === 'head_admin' ? 'pending' : 'draft';
 
     const listing = await Listing.create({
       title, description, price, price_period,
@@ -360,8 +365,9 @@ router.post('/', authenticate, requireRole('user_admin', 'head_admin'), async (r
       type, bedrooms, bathrooms,
       amenities: amenities || [],
       youtube_url, whatsapp_number, instagram_url,
+      is_vacant: is_vacant !== undefined ? is_vacant : true,
       landlord_id: req.user.id,
-      status: 'draft',
+      status: initialStatus,
     });
 
     res.status(201).json(listing);
@@ -403,20 +409,32 @@ router.patch('/:id', authenticate, requireRole('user_admin', 'head_admin'), asyn
   }
 });
 
-// ── POST /api/listings/:id/submit ─── Submit for approval ─────────────────────
-router.post('/:id/submit', authenticate, requireRole('user_admin'), async (req, res) => {
+// ── POST /api/listings/:id/submit ─── Submit listing for approval ─────────────
+// Landlords: draft → pending (enters admin review queue)
+// Head admin: pending → pending (no-op, already there — just returns the listing)
+router.post('/:id/submit', authenticate, requireRole('user_admin', 'head_admin'), async (req, res) => {
   try {
-    const listing = await Listing.findOne({
-      where: { id: req.params.id, landlord_id: req.user.id },
-    });
-    if (!listing) return res.status(404).json({ error: 'Not found' });
-    if (listing.status !== 'draft') {
-      return res.status(400).json({ error: 'Listing already submitted' });
+    const isHeadAdmin = req.user.role === 'head_admin';
+
+    // head_admin can submit any listing; landlord can only submit their own
+    const where = isHeadAdmin
+      ? { id: req.params.id }
+      : { id: req.params.id, landlord_id: req.user.id };
+
+    const listing = await Listing.findOne({ where });
+    if (!listing) return res.status(404).json({ error: 'Listing not found' });
+
+    // Only move forward if still in draft or pending — never re-submit approved/rejected
+    if (!['draft', 'pending'].includes(listing.status)) {
+      return res.status(400).json({ error: `Listing is already ${listing.status}` });
     }
+
+    // Always land in pending after submit
     await listing.update({ status: 'pending' });
     res.json(listing);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to submit' });
+    console.error('[submit]', err);
+    res.status(500).json({ error: 'Failed to submit listing' });
   }
 });
 
