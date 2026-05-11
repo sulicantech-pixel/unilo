@@ -1,17 +1,1199 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex, nofollow" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet" />
-    <title>Unilo Admin</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unilo Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Variables ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink:        #0a0a0a;
+      --ink-900:    #111111;
+      --ink-800:    #161616;
+      --ink-700:    #1e1e1e;
+      --brand:      #ff6b00;
+      --brand-d:    #e55f00;
+      --brand-l:    #ff8533;
+      --cream:      #f5f0e8;
+      --muted:      rgba(245,240,232,0.45);
+      --muted-lt:   rgba(245,240,232,0.2);
+      --wire:       rgba(255,255,255,0.08);
+      --ghost:      rgba(255,255,255,0.04);
+      --success:    #22c55e;
+      --danger:     #ef4444;
+      --warning:    #f59e0b;
+      --sidebar-w:  240px;
+    }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--ink); color: var(--cream); min-height: 100dvh; overflow-x: hidden; }
+    input, textarea, select, button { font-family: inherit; }
+
+    /* ── Scrollbar ──────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--wire); border-radius: 2px; }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .layout { display: flex; min-height: 100dvh; }
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--ink-900);
+      border-right: 1px solid var(--wire);
+      display: flex; flex-direction: column;
+      position: sticky; top: 0; height: 100dvh;
+    }
+    .main { flex: 1; overflow-y: auto; background: var(--ink); }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    .sidebar-logo {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid var(--wire);
+    }
+    .logo-row { display: flex; align-items: center; gap: 8px; }
+    .logo-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; color: var(--brand); letter-spacing: -0.5px; }
+    .logo-badge {
+      background: var(--danger); color: #fff;
+      font-size: 10px; font-weight: 700;
+      padding: 2px 6px; border-radius: 20px;
+      min-width: 18px; text-align: center;
+      line-height: 1.4;
+    }
+    .logo-role { font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: 0.3px; }
+
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+    .nav-section-label {
+      font-size: 10px; font-weight: 600; letter-spacing: 1px;
+      color: var(--muted-lt); text-transform: uppercase;
+      padding: 8px 12px 4px;
+    }
+    .nav-link {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; border-radius: 10px; margin-bottom: 2px;
+      font-size: 13px; color: var(--muted); text-decoration: none;
+      transition: all 0.15s; cursor: pointer; border: none; background: none; width: 100%;
+    }
+    .nav-link:hover { background: var(--ghost); color: var(--cream); }
+    .nav-link.active { background: rgba(255,107,0,0.12); color: var(--brand); font-weight: 600; }
+    .nav-link-inner { display: flex; align-items: center; gap: 10px; }
+    .nav-icon { width: 18px; text-align: center; font-size: 14px; }
+    .nav-badge {
+      background: var(--danger); color: #fff;
+      font-size: 9px; font-weight: 700;
+      padding: 1px 5px; border-radius: 20px;
+      min-width: 16px; text-align: center;
+    }
+
+    .sidebar-user {
+      padding: 16px 20px; border-top: 1px solid var(--wire);
+    }
+    .user-name { font-size: 13px; font-weight: 600; color: var(--cream); }
+    .user-email { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sign-out { font-size: 11px; color: var(--muted); margin-top: 12px; background: none; border: none; cursor: pointer; transition: color 0.15s; padding: 0; }
+    .sign-out:hover { color: var(--danger); }
+
+    /* ── Page wrapper ────────────────────────────────────────── */
+    .page { padding: 32px; max-width: 1200px; animation: fadeUp 0.3s ease both; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .page-header { margin-bottom: 28px; }
+    .page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 26px; color: var(--cream); letter-spacing: -0.5px; }
+    .page-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .card {
+      background: var(--ink-900); border: 1px solid var(--wire);
+      border-radius: 16px; overflow: hidden;
+    }
+    .card-p { padding: 20px; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; padding: 9px 18px;
+      border-radius: 10px; border: none; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-l); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+    .btn-danger:hover { background: rgba(239,68,68,0.18); }
+    .btn-ghost { background: transparent; color: var(--cream); border: 1px solid var(--wire); }
+    .btn-ghost:hover { background: var(--ghost); }
+    .btn-success { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+    .btn-success:hover { background: rgba(34,197,94,0.2); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+    /* ── Input ───────────────────────────────────────────────── */
+    .input {
+      width: 100%; background: var(--ghost); border: 1px solid var(--wire);
+      border-radius: 10px; padding: 10px 14px; color: var(--cream);
+      font-size: 13px; transition: border-color 0.15s; outline: none;
+    }
+    .input::placeholder { color: var(--muted-lt); }
+    .input:focus { border-color: rgba(255,107,0,0.5); }
+    textarea.input { resize: vertical; min-height: 90px; }
+    select.input { cursor: pointer; }
+    .input-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; margin-bottom: 6px; display: block; text-transform: uppercase; }
+
+    /* ── Badge ───────────────────────────────────────────────── */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+    .badge-pending { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.25); }
+    .badge-approved { background: rgba(34,197,94,0.12); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+    .badge-rejected { background: rgba(239,68,68,0.12); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+    .badge-brand { background: rgba(255,107,0,0.12); color: var(--brand); border: 1px solid rgba(255,107,0,0.25); }
+
+    /* ── Filter tabs ─────────────────────────────────────────── */
+    .filter-tabs { display: flex; gap: 2px; background: var(--ghost); border-radius: 12px; padding: 4px; width: fit-content; margin-bottom: 20px; }
+    .filter-tab { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--muted); border: none; background: none; cursor: pointer; transition: all 0.15s; }
+    .filter-tab.active { background: var(--brand); color: #fff; font-weight: 600; }
+
+    /* ── Pending Review Card ─────────────────────────────────── */
+    .review-card { transition: box-shadow 0.2s; }
+    .review-card.selected { box-shadow: 0 0 0 2px var(--brand); }
+
+    .review-header { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--wire); }
+    .review-body { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
+    .review-actions { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--wire); background: rgba(255,255,255,0.01); }
+
+    /* ── Photo strip ─────────────────────────────────────────── */
+    .photo-main { width: 100%; height: 200px; border-radius: 12px; overflow: hidden; background: var(--ghost); position: relative; }
+    .photo-main img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-counter { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 20px; }
+    .photo-thumbs { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .photo-thumb { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; border: 2px solid transparent; cursor: pointer; transition: border-color 0.15s; }
+    .photo-thumb.active { border-color: var(--brand); }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-empty { width: 100%; height: 200px; border-radius: 12px; background: var(--ghost); border: 1px dashed var(--wire); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    .photo-empty-icon { font-size: 32px; opacity: 0.5; }
+    .photo-empty-text { font-size: 12px; color: var(--muted); }
+
+    /* ── Detail grid ─────────────────────────────────────────── */
+    .detail-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .detail-pill { background: var(--ghost); border: 1px solid var(--wire); border-radius: 8px; padding: 8px 12px; text-align: center; }
+    .pill-val { font-size: 14px; font-weight: 700; color: var(--cream); display: block; }
+    .pill-key { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+
+    /* ── Flags bar ───────────────────────────────────────────── */
+    .flags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .flag { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px; border: 1px solid; }
+    .flag-error { background: rgba(239,68,68,0.1); color: var(--danger); border-color: rgba(239,68,68,0.2); }
+    .flag-warn { background: rgba(245,158,11,0.1); color: var(--warning); border-color: rgba(245,158,11,0.2); }
+    .flag-ok { background: rgba(34,197,94,0.1); color: var(--success); border-color: rgba(34,197,94,0.2); font-size: 11px; }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal { background: var(--ink-900); border: 1px solid var(--wire); border-radius: 20px; padding: 28px; width: 100%; max-width: 480px; animation: scaleIn 0.2s ease; }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--cream); }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Create Listing form ─────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-grid.full { grid-template-columns: 1fr; }
+    .amenity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .amenity-btn { padding: 10px; border-radius: 10px; border: 1px solid var(--wire); background: var(--ghost); font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.15s; text-align: center; }
+    .amenity-btn.active { border-color: var(--brand); background: rgba(255,107,0,0.1); color: var(--brand); }
+    .step-indicator { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--wire); transition: all 0.2s; }
+    .step-dot.done { background: var(--brand); }
+    .step-dot.active { width: 24px; border-radius: 4px; background: var(--brand); }
+    .upload-zone { border: 2px dashed var(--wire); border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: border-color 0.2s; background: var(--ghost); }
+    .upload-zone:hover { border-color: var(--brand); }
+    .photo-preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    .photo-preview { aspect-ratio: 1; border-radius: 8px; overflow: hidden; position: relative; }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-remove { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: rgba(0,0,0,0.7); color: #fff; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; }
+
+    /* ── Stat card ───────────────────────────────────────────── */
+    .stat-card { padding: 20px; position: relative; overflow: hidden; }
+    .stat-glow { position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; filter: blur(30px); opacity: 0.12; transition: opacity 0.2s; }
+    .stat-card:hover .stat-glow { opacity: 0.2; }
+    .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+    .stat-val { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: var(--cream); }
+    .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Empty states ────────────────────────────────────────── */
+    .empty { padding: 60px 20px; text-align: center; }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--cream); }
+    .empty-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Divider ─────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--wire); margin: 20px 0; }
+    hr.divider { border: none; }
+
+    /* ── Util ────────────────────────────────────────────────── */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .items-center { align-items: center; }
+    .items-start { align-items: flex-start; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .gap-4 { gap: 16px; }
+    .flex-1 { flex: 1; }
+    .min-w-0 { min-width: 0; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mb-4 { margin-bottom: 16px; }
+    .text-sm { font-size: 13px; }
+    .text-xs { font-size: 11px; }
+    .text-muted { color: var(--muted); }
+    .text-cream { color: var(--cream); }
+    .text-brand { color: var(--brand); }
+    .text-success { color: var(--success); }
+    .text-danger { color: var(--danger); }
+    .text-warning { color: var(--warning); }
+    .font-bold { font-weight: 700; }
+    .font-display { font-family: 'Syne', sans-serif; }
+    .hidden { display: none !important; }
+
+    /* ── Skeleton ────────────────────────────────────────────── */
+    .skeleton { background: var(--ghost); border-radius: 8px; animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* ── Quick Reason list ───────────────────────────────────── */
+    .reason-btn { width: 100%; text-align: left; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--wire); background: var(--ghost); font-size: 12px; color: var(--muted); cursor: pointer; transition: all 0.15s; margin-bottom: 5px; }
+    .reason-btn:hover { border-color: var(--wire); color: var(--cream); background: rgba(255,255,255,0.06); }
+    .reason-btn.selected { background: rgba(239,68,68,0.08); color: var(--danger); border-color: rgba(239,68,68,0.25); }
+
+    /* ── Edit inline ─────────────────────────────────────────── */
+    .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); z-index: 100; display: flex; align-items: flex-start; justify-content: center; padding: 24px; overflow-y: auto; }
+    .edit-modal { background: var(--ink-900); border: 1px solid var(--wire); border-radius: 20px; padding: 28px; width: 100%; max-width: 620px; animation: scaleIn 0.2s ease; }
+  </style>
+</head>
+<body>
+
+<div class="layout" id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-row">
+        <span class="logo-text">Unilo</span>
+        <span class="logo-badge hidden" id="sidebar-badge">0</span>
+      </div>
+      <div class="logo-role">Head Admin</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <button class="nav-link active" onclick="showPage('dashboard')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">◈</span> Dashboard
+        </div>
+      </button>
+      <button class="nav-link" onclick="showPage('pending')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">⏳</span> Pending
+        </div>
+        <span class="nav-badge hidden" id="nav-pending-badge">0</span>
+      </button>
+
+      <div class="nav-section-label" style="margin-top:12px;">Manage</div>
+      <button class="nav-link" onclick="showPage('create')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">＋</span> Create Space
+        </div>
+      </button>
+      <button class="nav-link" onclick="showPage('listings')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">🏠</span> All Listings
+        </div>
+      </button>
+      <button class="nav-link" onclick="showPage('users')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">👥</span> Users
+        </div>
+      </button>
+
+      <div class="nav-section-label" style="margin-top:12px;">Data</div>
+      <button class="nav-link" onclick="showPage('analytics')">
+        <div class="nav-link-inner">
+          <span class="nav-icon">📈</span> Analytics
+        </div>
+      </button>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-name">Patrick Unilo</div>
+      <div class="user-email">admin@unilo.ng</div>
+      <button class="sign-out">Sign out →</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <h1 class="page-title">Good morning, Patrick 👋</h1>
+          <p class="page-sub">Here's what's happening on Unilo today</p>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('pending')">Review Pending →</button>
+      </div>
+
+      <!-- Stat cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+        <div class="card stat-card">
+          <div class="stat-glow" style="background:var(--brand)"></div>
+          <div class="stat-label">Live Spaces</div>
+          <div class="stat-val" id="stat-live">—</div>
+          <div class="stat-sub">Approved &amp; visible</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-glow" style="background:var(--warning)"></div>
+          <div class="stat-label">Pending Review</div>
+          <div class="stat-val" id="stat-pending">—</div>
+          <div class="stat-sub">Awaiting approval</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-glow" style="background:var(--success)"></div>
+          <div class="stat-label">Total Users</div>
+          <div class="stat-val" id="stat-users">—</div>
+          <div class="stat-sub">Registered accounts</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-glow" style="background:#8b5cf6"></div>
+          <div class="stat-label">Total Searches</div>
+          <div class="stat-val" id="stat-searches">—</div>
+          <div class="stat-sub">This month</div>
+        </div>
+      </div>
+
+      <!-- Pending preview -->
+      <div class="card">
+        <div class="flex items-center justify-between" style="padding:18px 20px;border-bottom:1px solid var(--wire);">
+          <div>
+            <div class="font-display font-bold" style="font-size:15px;">Listings Awaiting Review</div>
+            <div class="text-xs text-muted mt-1">Submit from clients come here first</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('pending')">View all</button>
+        </div>
+        <div id="dashboard-pending-list" style="padding:12px 0;">
+          <div class="skeleton" style="height:60px;margin:0 20px 8px;border-radius:10px;"></div>
+          <div class="skeleton" style="height:60px;margin:0 20px 8px;border-radius:10px;"></div>
+          <div class="skeleton" style="height:60px;margin:0 20px;border-radius:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENDING PAGE -->
+    <div id="page-pending" class="page hidden">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <h1 class="page-title">Pending Approval</h1>
+          <p class="page-sub" id="pending-subtitle">Loading listings…</p>
+        </div>
+        <div class="flex gap-2" id="pending-batch-controls"></div>
+      </div>
+
+      <div class="filter-tabs" id="pending-filters">
+        <button class="filter-tab active" onclick="setPendingFilter('all')">All</button>
+        <button class="filter-tab" onclick="setPendingFilter('clean')">✓ Ready</button>
+        <button class="filter-tab" onclick="setPendingFilter('flags')">⚠ Issues</button>
+      </div>
+
+      <div id="pending-list"></div>
+    </div>
+
+    <!-- CREATE PAGE -->
+    <div id="page-create" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Create a Space</h1>
+        <p class="page-sub">Upload a listing directly — it goes live instantly</p>
+      </div>
+      <div id="create-form-container"></div>
+    </div>
+
+    <!-- LISTINGS PAGE -->
+    <div id="page-listings" class="page hidden">
+      <div class="page-header flex items-center justify-between">
+        <div>
+          <h1 class="page-title">All Listings</h1>
+          <p class="page-sub">Every space on Unilo — live and archived</p>
+        </div>
+        <button class="btn btn-primary" onclick="showPage('create')">＋ Create Space</button>
+      </div>
+      <div id="all-listings-list"></div>
+    </div>
+
+    <!-- USERS PAGE -->
+    <div id="page-users" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Users</h1>
+        <p class="page-sub">Registered accounts and landlords</p>
+      </div>
+      <div id="users-list"></div>
+    </div>
+
+    <!-- ANALYTICS PAGE -->
+    <div id="page-analytics" class="page hidden">
+      <div class="page-header">
+        <h1 class="page-title">Analytics</h1>
+        <p class="page-sub">Search trends and engagement</p>
+      </div>
+      <div class="card card-p empty">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">Analytics dashboard</div>
+        <div class="empty-sub">Connect your analytics source to see data here</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal-overlay hidden" id="reject-modal">
+  <div class="modal">
+    <div class="modal-title">Reject listing</div>
+    <div class="modal-sub" id="reject-listing-name" style="margin-top:4px;"></div>
+    <div class="divider"></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Quick reasons</div>
+    <div id="quick-reasons"></div>
+    <textarea class="input mt-3" id="reject-reason-text" placeholder="Or write a custom reason…" rows="3"></textarea>
+    <div class="flex gap-3 mt-4">
+      <button class="btn btn-danger flex-1" onclick="confirmReject()">Confirm Reject</button>
+      <button class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="edit-overlay hidden" id="edit-modal">
+  <div class="edit-modal" id="edit-modal-inner"></div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const API = (window.VITE_API_URL || '/api');
+let TOKEN = (() => { try { return JSON.parse(localStorage.getItem('unilo-admin-auth'))?.token || ''; } catch { return ''; } })();
+
+const state = {
+  currentPage: 'dashboard',
+  pendingListings: [],
+  pendingFilter: 'all',
+  rejectTarget: null,
+  editTarget: null,
+  createStep: 1,
+  createForm: {
+    title: '', description: '', price: '', price_period: 'annually',
+    address: '', city: '', state: '',
+    latitude: '', longitude: '',
+    type: 'self_contain', bedrooms: 1, bathrooms: 1,
+    amenities: [],
+    youtube_url: '', whatsapp_number: '', instagram_url: '',
+    is_vacant: true,
+  },
+  createPhotos: [],
+  createPhotoFiles: [],
+};
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+  document.getElementById(`page-${name}`)?.classList.remove('hidden');
+  document.querySelectorAll('.nav-link').forEach(el => {
+    if (el.getAttribute('onclick')?.includes(`'${name}'`)) el.classList.add('active');
+  });
+  state.currentPage = name;
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'pending') loadPending();
+  if (name === 'listings') loadAllListings();
+  if (name === 'users') loadUsers();
+  if (name === 'create') renderCreateForm();
+}
+
+// ── Pending listings ──────────────────────────────────────────────────────────
+const AMENITY_ICONS = { wifi:'📶', generator:'⚡', water:'💧', security:'🔒', parking:'🚗', kitchen:'🍳', furnished:'🛋️', air_conditioning:'❄️', cctv:'📹' };
+const QUICK_REASONS = [
+  'Photos are too dark or low quality',
+  'Price is unrealistic for the area',
+  'Address is incomplete or unverifiable',
+  'Description contains false information',
+  'WhatsApp number is invalid or missing',
+  'Duplicate listing already exists',
+];
+
+function getFlags(l) {
+  const f = [];
+  const n = l.photos?.length || 0;
+  if (n === 0) f.push({ type:'error', text:'No photos' });
+  else if (n < 3) f.push({ type:'warn', text:`Only ${n} photo${n>1?'s':''}` });
+  if (!l.whatsapp_number) f.push({ type:'warn', text:'No WhatsApp' });
+  if (!l.description || l.description.length < 50) f.push({ type:'warn', text:'Short description' });
+  if (!l.youtube_video_id) f.push({ type:'info', text:'No video tour' });
+  return f;
+}
+
+function fmtPrice(v, period) {
+  return new Intl.NumberFormat('en-NG', { style:'currency', currency:'NGN', maximumFractionDigits:0 }).format(v) +
+    (period === 'monthly' ? '/mo' : '/yr');
+}
+
+async function loadPending() {
+  const container = document.getElementById('pending-list');
+  container.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;">${[1,2,3].map(()=>`<div class="card skeleton" style="height:280px;"></div>`).join('')}</div>`;
+
+  try {
+    const data = await apiFetch('/admin/pending');
+    state.pendingListings = data || [];
+    updatePendingBadge(state.pendingListings.length);
+    renderPendingList();
+  } catch(e) {
+    container.innerHTML = `<div class="card card-p empty"><div class="empty-icon">⚠️</div><div class="empty-title">Could not load listings</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+function updatePendingBadge(n) {
+  const badges = [document.getElementById('nav-pending-badge'), document.getElementById('sidebar-badge')];
+  badges.forEach(b => {
+    if (!b) return;
+    b.textContent = n;
+    n > 0 ? b.classList.remove('hidden') : b.classList.add('hidden');
+  });
+  const sub = document.getElementById('pending-subtitle');
+  if (sub) sub.textContent = `${n} listing${n!==1?'s':''} awaiting review`;
+}
+
+function setPendingFilter(f) {
+  state.pendingFilter = f;
+  document.querySelectorAll('.filter-tab').forEach((btn, i) => {
+    btn.classList.toggle('active', ['all','clean','flags'][i] === f);
+  });
+  renderPendingList();
+}
+
+function renderPendingList() {
+  const container = document.getElementById('pending-list');
+  const listings = state.pendingListings;
+
+  const filtered = listings.filter(l => {
+    const flags = getFlags(l);
+    if (state.pendingFilter === 'clean') return flags.length === 0;
+    if (state.pendingFilter === 'flags') return flags.length > 0;
+    return true;
+  });
+
+  if (listings.length === 0) {
+    container.innerHTML = `<div class="card empty"><div class="empty-icon">✅</div><div class="empty-title">Queue is clear!</div><div class="empty-sub">No listings awaiting approval.</div></div>`;
+    return;
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="card empty"><div class="empty-icon">🔍</div><div class="empty-title">No matches</div><div class="empty-sub">No listings match this filter.</div></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;">${filtered.map(l => renderReviewCard(l)).join('')}</div>`;
+}
+
+function renderReviewCard(l) {
+  const flags = getFlags(l);
+  const hasErrors = flags.some(f => f.type === 'error');
+  const photos = l.photos || [];
+  const submittedAt = l.updated_at ? new Date(l.updated_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+
+  const photoHtml = photos.length === 0
+    ? `<div class="photo-empty"><div class="photo-empty-icon">📷</div><div class="photo-empty-text">No photos uploaded</div></div>`
+    : `<div class="photo-main" id="photo-main-${l.id}"><img src="${photos[0].url}" alt="" /><span class="photo-counter">1 / ${photos.length}</span></div>
+       ${photos.length > 1 ? `<div class="photo-thumbs">${photos.map((p,i)=>`<div class="photo-thumb${i===0?' active':''}" onclick="switchPhoto('${l.id}',${i},'${p.url}',${photos.length})" data-idx="${i}"><img src="${p.url}" alt="" /></div>`).join('')}</div>` : ''}`;
+
+  const flagsHtml = flags.length === 0
+    ? `<span class="flag flag-ok">✓ All checks passed</span>`
+    : flags.map(f => `<span class="flag flag-${f.type==='error'?'error':f.type==='warn'?'warn':'ok'}">${f.type==='error'?'✕':f.type==='warn'?'⚠':'ℹ'} ${f.text}</span>`).join('');
+
+  const amenities = (l.amenities || []).map(a => `<span style="font-size:10px;padding:3px 8px;background:var(--ghost);border:1px solid var(--wire);border-radius:20px;color:var(--muted);">${AMENITY_ICONS[a]||''} ${a.replace(/_/g,' ')}</span>`).join('');
+
+  return `
+  <div class="card review-card" id="review-${l.id}">
+    <div class="review-header">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-display font-bold text-cream" style="font-size:15px;">${escHtml(l.title)}</div>
+            <div class="text-xs text-muted mt-1">📍 ${escHtml(l.address)}, ${escHtml(l.city)} · ${fmtPrice(l.price, l.price_period)}</div>
+            <div class="text-xs text-muted mt-1">By: <span class="text-cream">${escHtml(l.landlord?.business_name || `${l.landlord?.first_name||''} ${l.landlord?.last_name||''}`.trim())}</span> · ${escHtml(l.landlord?.email||'')} · Submitted ${submittedAt}</div>
+          </div>
+          <span class="badge badge-pending">Pending</span>
+        </div>
+      </div>
+    </div>
+    <div class="review-body">
+      <div>${photoHtml}</div>
+      <div>
+        <div class="detail-pills">
+          <div class="detail-pill"><span class="pill-val" style="text-transform:capitalize;">${(l.type||'').replace(/_/g,' ')}</span><span class="pill-key">Type</span></div>
+          <div class="detail-pill"><span class="pill-val">${l.bedrooms||'—'}</span><span class="pill-key">Beds</span></div>
+          <div class="detail-pill"><span class="pill-val">${l.bathrooms||'—'}</span><span class="pill-key">Baths</span></div>
+        </div>
+        ${amenities ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${amenities}</div>` : ''}
+        ${l.description ? `<p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(l.description)}</p>` : ''}
+        <div class="flex gap-3 mt-3">
+          ${l.youtube_video_id ? `<a href="https://youtube.com/watch?v=${l.youtube_video_id}" target="_blank" style="font-size:11px;color:var(--brand);text-decoration:none;">▶ Video tour</a>` : ''}
+          ${l.whatsapp_number ? `<a href="https://wa.me/${l.whatsapp_number.replace(/\D/g,'')}" target="_blank" style="font-size:11px;color:var(--success);text-decoration:none;">💬 ${escHtml(l.whatsapp_number)}</a>` : ''}
+        </div>
+        <div class="flags mt-3">${flagsHtml}</div>
+      </div>
+    </div>
+    <div class="review-actions">
+      <button class="btn btn-primary flex-1 btn-sm" onclick="approveListing('${l.id}')" ${hasErrors?'disabled title="Fix errors before approving"':''}>✓ Approve &amp; Go Live</button>
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏ Edit</button>
+      <button class="btn btn-danger btn-sm flex-1" onclick="openRejectModal(${JSON.stringify(l).replace(/"/g,'&quot;')})">✕ Reject</button>
+      ${hasErrors ? `<span style="font-size:10px;color:var(--danger);">Fix errors first</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function switchPhoto(listingId, idx, url, total) {
+  const main = document.getElementById(`photo-main-${listingId}`);
+  if (!main) return;
+  main.querySelector('img').src = url;
+  main.querySelector('.photo-counter').textContent = `${idx+1} / ${total}`;
+  main.closest('.review-card').querySelectorAll('.photo-thumb').forEach((t, i) => t.classList.toggle('active', i===idx));
+}
+
+async function approveListing(id) {
+  const btn = document.querySelector(`#review-${id} .btn-primary`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Going live…'; }
+  try {
+    await apiFetch(`/admin/listings/${id}/approve`, { method:'POST' });
+    state.pendingListings = state.pendingListings.filter(l => l.id !== id);
+    updatePendingBadge(state.pendingListings.length);
+    const card = document.getElementById(`review-${id}`);
+    if (card) { card.style.transition = 'opacity 0.3s'; card.style.opacity = '0'; setTimeout(() => { renderPendingList(); }, 300); }
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Approve & Go Live'; }
+    alert('Approval failed: ' + e.message);
+  }
+}
+
+// ── Reject modal ──────────────────────────────────────────────────────────────
+function openRejectModal(listing) {
+  state.rejectTarget = listing;
+  document.getElementById('reject-listing-name').textContent = `"${listing.title}"`;
+  document.getElementById('reject-reason-text').value = '';
+  const qr = document.getElementById('quick-reasons');
+  qr.innerHTML = QUICK_REASONS.map(r => `<button class="reason-btn" onclick="selectReason(this,'${escJs(r)}')">${r}</button>`).join('');
+  document.getElementById('reject-modal').classList.remove('hidden');
+}
+
+function selectReason(btn, r) {
+  document.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('reject-reason-text').value = r;
+}
+
+function closeRejectModal() {
+  document.getElementById('reject-modal').classList.add('hidden');
+  state.rejectTarget = null;
+}
+
+async function confirmReject() {
+  const reason = document.getElementById('reject-reason-text').value.trim();
+  if (!reason) { alert('Please provide a reason'); return; }
+  const id = state.rejectTarget?.id;
+  if (!id) return;
+  try {
+    await apiFetch(`/admin/listings/${id}/reject`, { method:'POST', body: JSON.stringify({ reason }) });
+    state.pendingListings = state.pendingListings.filter(l => l.id !== id);
+    updatePendingBadge(state.pendingListings.length);
+    closeRejectModal();
+    renderPendingList();
+  } catch(e) { alert('Rejection failed: ' + e.message); }
+}
+
+// ── Edit modal ────────────────────────────────────────────────────────────────
+function openEditModal(listing) {
+  state.editTarget = { ...listing };
+  const modal = document.getElementById('edit-modal');
+  const inner = document.getElementById('edit-modal-inner');
+  inner.innerHTML = renderEditForm(listing);
+  modal.classList.remove('hidden');
+}
+
+function renderEditForm(l) {
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <div class="font-display font-bold" style="font-size:16px;color:var(--cream);">Edit Listing</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeEditModal()">✕ Close</button>
+    </div>
+    <div class="form-grid">
+      <div style="grid-column:1/-1;">
+        <label class="input-label">Title</label>
+        <input class="input" id="edit-title" value="${escAttr(l.title)}" />
+      </div>
+      <div>
+        <label class="input-label">Price (₦)</label>
+        <input class="input" id="edit-price" type="number" value="${l.price||''}" />
+      </div>
+      <div>
+        <label class="input-label">Period</label>
+        <select class="input" id="edit-period">
+          <option value="annually" ${l.price_period==='annually'?'selected':''}>Annually</option>
+          <option value="monthly" ${l.price_period==='monthly'?'selected':''}>Monthly</option>
+        </select>
+      </div>
+      <div>
+        <label class="input-label">City</label>
+        <input class="input" id="edit-city" value="${escAttr(l.city||'')}" />
+      </div>
+      <div>
+        <label class="input-label">State</label>
+        <input class="input" id="edit-state" value="${escAttr(l.state||'')}" />
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="input-label">Address</label>
+        <input class="input" id="edit-address" value="${escAttr(l.address||'')}" />
+      </div>
+      <div>
+        <label class="input-label">WhatsApp</label>
+        <input class="input" id="edit-wa" value="${escAttr(l.whatsapp_number||'')}" />
+      </div>
+      <div>
+        <label class="input-label">Status</label>
+        <select class="input" id="edit-status">
+          <option value="pending" ${l.status==='pending'?'selected':''}>Pending</option>
+          <option value="approved" ${l.status==='approved'?'selected':''}>Approved (Live)</option>
+          <option value="rejected" ${l.status==='rejected'?'selected':''}>Rejected</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="input-label">Description</label>
+        <textarea class="input" id="edit-desc">${escHtml(l.description||'')}</textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-5">
+      <button class="btn btn-primary flex-1" onclick="saveEdit('${l.id}')">Save Changes</button>
+      <button class="btn btn-success btn-sm" onclick="approveFromEdit('${l.id}')">✓ Approve &amp; Go Live</button>
+    </div>
+  `;
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  state.editTarget = null;
+}
+
+async function saveEdit(id) {
+  const updates = {
+    title: document.getElementById('edit-title').value,
+    price: parseFloat(document.getElementById('edit-price').value),
+    price_period: document.getElementById('edit-period').value,
+    city: document.getElementById('edit-city').value,
+    state: document.getElementById('edit-state').value,
+    address: document.getElementById('edit-address').value,
+    whatsapp_number: document.getElementById('edit-wa').value,
+    status: document.getElementById('edit-status').value,
+    description: document.getElementById('edit-desc').value,
+  };
+  try {
+    await apiFetch(`/admin/listings/${id}`, { method:'PATCH', body: JSON.stringify(updates) });
+    closeEditModal();
+    if (state.currentPage === 'pending') loadPending();
+    else if (state.currentPage === 'listings') loadAllListings();
+  } catch(e) { alert('Save failed: ' + e.message); }
+}
+
+async function approveFromEdit(id) {
+  const status = document.getElementById('edit-status');
+  if (status) status.value = 'approved';
+  await saveEdit(id);
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const [intel, pending] = await Promise.allSettled([
+      apiFetch('/admin/intelligence'),
+      apiFetch('/admin/pending'),
+    ]);
+
+    if (intel.status === 'fulfilled') {
+      const f = intel.value?.funnel || {};
+      document.getElementById('stat-live').textContent = f.active_listings ?? '—';
+      document.getElementById('stat-users').textContent = f.total_users ?? '—';
+      document.getElementById('stat-searches').textContent = f.total_searches ?? '—';
+    }
+
+    if (pending.status === 'fulfilled') {
+      const items = pending.value || [];
+      state.pendingListings = items;
+      document.getElementById('stat-pending').textContent = items.length;
+      updatePendingBadge(items.length);
+
+      const container = document.getElementById('dashboard-pending-list');
+      if (items.length === 0) {
+        container.innerHTML = `<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">Queue is clear</div></div>`;
+      } else {
+        container.innerHTML = `<div>${items.slice(0,4).map(l => `
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--wire);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:600;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(l.title)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(l.city)} · ${fmtPrice(l.price,l.price_period)}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn btn-primary btn-sm" onclick="approveListing('${l.id}');showPage('pending')">Approve</button>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('pending')">Review</button>
+            </div>
+          </div>
+        `).join('')}
+        ${items.length > 4 ? `<div style="padding:12px 20px;"><button class="btn btn-ghost btn-sm" onclick="showPage('pending')">View all ${items.length} pending →</button></div>` : ''}
+        </div>`;
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ── All listings ──────────────────────────────────────────────────────────────
+async function loadAllListings() {
+  const container = document.getElementById('all-listings-list');
+  container.innerHTML = `<div style="display:grid;gap:10px;">${[1,2,3,4,5].map(()=>`<div class="card skeleton" style="height:70px;"></div>`).join('')}</div>`;
+  try {
+    const data = await apiFetch('/listings?limit=50');
+    const listings = data.listings || data || [];
+    if (listings.length === 0) {
+      container.innerHTML = `<div class="card empty"><div class="empty-icon">🏠</div><div class="empty-title">No listings yet</div></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="card" style="overflow:hidden;">
+      ${listings.map(l => `
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--wire);">
+          <div style="width:50px;height:50px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--ghost);">
+            ${l.cover_photo ? `<img src="${l.cover_photo.url}" style="width:100%;height:100%;object-fit:cover;" />` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;">🏠</div>'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--cream);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(l.title)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(l.city||'')} · ${fmtPrice(l.price,l.price_period)}</div>
+          </div>
+          <span class="badge badge-${l.status==='approved'?'approved':l.status==='pending'?'pending':'rejected'}">${l.status}</span>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button class="btn btn-ghost btn-sm" onclick="openEditModal(${JSON.stringify(l).replace(/"/g,'&quot;')})">✏ Edit</button>
+            ${l.status !== 'approved' ? `<button class="btn btn-primary btn-sm" onclick="approveListing('${l.id}').then(()=>loadAllListings())">Go Live</button>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  } catch(e) {
+    container.innerHTML = `<div class="card card-p empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const container = document.getElementById('users-list');
+  container.innerHTML = `<div style="display:grid;gap:10px;">${[1,2,3].map(()=>`<div class="card skeleton" style="height:60px;"></div>`).join('')}</div>`;
+  try {
+    const data = await apiFetch('/admin/users?limit=30');
+    const users = data.users || [];
+    if (users.length === 0) {
+      container.innerHTML = `<div class="card empty"><div class="empty-icon">👥</div><div class="empty-title">No users yet</div></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="card" style="overflow:hidden;">
+      ${users.map(u => `
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--wire);">
+          <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,107,0,0.15);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">${(u.first_name||'?')[0].toUpperCase()}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--cream);">${escHtml(`${u.first_name||''} ${u.last_name||''}`.trim()||u.email)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${escHtml(u.email)} · ${u.role||'user'}</div>
+          </div>
+          ${u.is_suspended ? `<span class="badge badge-rejected">Suspended</span>` : `<span class="badge badge-approved">Active</span>`}
+        </div>
+      `).join('')}
+    </div>`;
+  } catch(e) {
+    container.innerHTML = `<div class="card card-p empty"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ── Create listing form ───────────────────────────────────────────────────────
+const TYPES = ['self_contain','room_and_parlour','flat','bungalow','duplex','hostel'];
+const AMENITIES = ['wifi','generator','water','security','parking','kitchen','furnished','air_conditioning','cctv'];
+const AMENITY_LABELS = { wifi:'WiFi', generator:'Generator', water:'Water', security:'Security', parking:'Parking', kitchen:'Kitchen', furnished:'Furnished', air_conditioning:'AC', cctv:'CCTV' };
+
+function renderCreateForm() {
+  const container = document.getElementById('create-form-container');
+  const f = state.createForm;
+  const step = state.createStep;
+
+  let stepsHtml = `<div class="step-indicator">
+    ${[1,2,3].map(i=>`<div class="step-dot ${i<step?'done':i===step?'active':''}"></div>`).join('')}
+    <span style="font-size:12px;color:var(--muted);margin-left:4px;">Step ${step} of 3</span>
+  </div>`;
+
+  if (step === 1) {
+    container.innerHTML = stepsHtml + `
+      <div style="display:grid;gap:20px;max-width:680px;">
+        <div class="form-grid">
+          <div style="grid-column:1/-1;">
+            <label class="input-label">Space title *</label>
+            <input class="input" id="cf-title" value="${escAttr(f.title)}" placeholder="e.g. Cozy self-contain in Lekki Phase 1" />
+          </div>
+          <div>
+            <label class="input-label">Type *</label>
+            <select class="input" id="cf-type">${TYPES.map(t=>`<option value="${t}" ${f.type===t?'selected':''}>${t.replace(/_/g,' ')}</option>`).join('')}</select>
+          </div>
+          <div>
+            <label class="input-label">Price (₦) *</label>
+            <input class="input" id="cf-price" type="number" value="${f.price}" placeholder="e.g. 800000" />
+          </div>
+          <div>
+            <label class="input-label">Period</label>
+            <select class="input" id="cf-period">
+              <option value="annually" ${f.price_period==='annually'?'selected':''}>Annually</option>
+              <option value="monthly" ${f.price_period==='monthly'?'selected':''}>Monthly</option>
+            </select>
+          </div>
+          <div>
+            <label class="input-label">Bedrooms</label>
+            <input class="input" id="cf-beds" type="number" min="0" value="${f.bedrooms}" />
+          </div>
+          <div>
+            <label class="input-label">Bathrooms</label>
+            <input class="input" id="cf-baths" type="number" min="0" value="${f.bathrooms}" />
+          </div>
+          <div>
+            <label class="input-label">City *</label>
+            <input class="input" id="cf-city" value="${escAttr(f.city)}" placeholder="e.g. Lagos" />
+          </div>
+          <div>
+            <label class="input-label">State</label>
+            <input class="input" id="cf-state" value="${escAttr(f.state)}" placeholder="e.g. Lagos State" />
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="input-label">Full address *</label>
+            <input class="input" id="cf-address" value="${escAttr(f.address)}" placeholder="e.g. 12 Admiralty Way, Lekki Phase 1" />
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="input-label">Description</label>
+            <textarea class="input" id="cf-desc" rows="4" placeholder="Describe the space, neighbourhood, access…">${escHtml(f.description)}</textarea>
+          </div>
+          <div>
+            <label class="input-label">WhatsApp Number</label>
+            <input class="input" id="cf-wa" value="${escAttr(f.whatsapp_number)}" placeholder="+2348012345678" />
+          </div>
+          <div>
+            <label class="input-label">YouTube Video URL (optional)</label>
+            <input class="input" id="cf-yt" value="${escAttr(f.youtube_url)}" placeholder="https://youtube.com/watch?v=…" />
+          </div>
+        </div>
+
+        <div>
+          <label class="input-label" style="margin-bottom:10px;">Amenities</label>
+          <div class="amenity-grid">
+            ${AMENITIES.map(a=>`<button class="amenity-btn${f.amenities.includes(a)?' active':''}" onclick="toggleAmenity('${a}')" type="button">${AMENITY_ICONS[a]||''} ${AMENITY_LABELS[a]||a}</button>`).join('')}
+          </div>
+        </div>
+
+        <div>
+          <label class="input-label">Vacancy</label>
+          <div style="display:flex;gap:8px;">
+            <button class="amenity-btn${f.is_vacant?' active':''}" onclick="setVacancy(true)" type="button">✓ Vacant</button>
+            <button class="amenity-btn${!f.is_vacant?' active':''}" onclick="setVacancy(false)" type="button">✗ Occupied</button>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button class="btn btn-primary" onclick="createStep2()">Next: Photos →</button>
+          <button class="btn btn-ghost" onclick="showPage('dashboard')">Cancel</button>
+        </div>
+      </div>`;
+  }
+
+  else if (step === 2) {
+    const previews = state.createPhotos.map((url, i) => `
+      <div class="photo-preview">
+        <img src="${url}" alt="" />
+        <button class="photo-remove" onclick="removePhoto(${i})">✕</button>
+      </div>`).join('');
+
+    container.innerHTML = stepsHtml + `
+      <div style="max-width:560px;">
+        <div class="upload-zone" onclick="document.getElementById('photo-input').click()">
+          <div style="font-size:32px;margin-bottom:8px;">📸</div>
+          <div style="font-size:14px;font-weight:600;color:var(--cream);">Click to upload photos</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">JPG, PNG up to 10MB each · Min 3 recommended</div>
+          <input type="file" id="photo-input" multiple accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)" />
+        </div>
+        ${state.createPhotos.length > 0 ? `<div class="photo-preview-grid mt-3">${previews}</div>` : ''}
+        <div class="flex gap-3 mt-5">
+          <button class="btn btn-primary" onclick="createStep3()">Next: Publish →</button>
+          <button class="btn btn-ghost" onclick="state.createStep=1;renderCreateForm()">← Back</button>
+        </div>
+      </div>`;
+  }
+
+  else if (step === 3) {
+    container.innerHTML = stepsHtml + `
+      <div class="card card-p" style="max-width:480px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">🚀</div>
+        <div class="font-display font-bold" style="font-size:18px;color:var(--cream);">Ready to publish</div>
+        <p style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;">
+          <strong style="color:var(--cream);">${escHtml(state.createForm.title)}</strong> in ${escHtml(state.createForm.city)} will go live immediately on the client once published.
+        </p>
+        <div style="background:rgba(255,107,0,0.08);border:1px solid rgba(255,107,0,0.2);border-radius:12px;padding:14px;margin:16px 0;text-align:left;">
+          <div style="font-size:12px;color:var(--muted);">
+            <div>📍 ${escHtml(state.createForm.address)}, ${escHtml(state.createForm.city)}</div>
+            <div style="margin-top:4px;">💰 ${fmtPrice(parseFloat(state.createForm.price)||0, state.createForm.price_period)}</div>
+            <div style="margin-top:4px;">📸 ${state.createPhotos.length} photo${state.createPhotos.length!==1?'s':''} ready</div>
+          </div>
+        </div>
+        <div class="flex gap-3 justify-center">
+          <button class="btn btn-primary" onclick="submitCreate(true)" id="publish-btn">🚀 Publish & Go Live</button>
+          <button class="btn btn-ghost" onclick="submitCreate(false)" id="draft-btn">Save as Draft</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="state.createStep=2;renderCreateForm()">← Back</button>
+      </div>`;
+  }
+}
+
+function toggleAmenity(a) {
+  const f = state.createForm;
+  f.amenities = f.amenities.includes(a) ? f.amenities.filter(x=>x!==a) : [...f.amenities, a];
+  renderCreateForm();
+}
+
+function setVacancy(v) { state.createForm.is_vacant = v; renderCreateForm(); }
+
+function handlePhotoUpload(e) {
+  const files = Array.from(e.target.files);
+  files.forEach(f => {
+    state.createPhotoFiles.push(f);
+    const reader = new FileReader();
+    reader.onload = ev => { state.createPhotos.push(ev.target.result); renderCreateForm(); };
+    reader.readAsDataURL(f);
+  });
+}
+
+function removePhoto(i) {
+  state.createPhotos.splice(i,1);
+  state.createPhotoFiles.splice(i,1);
+  renderCreateForm();
+}
+
+function readCreateStep1() {
+  const f = state.createForm;
+  f.title = document.getElementById('cf-title')?.value || f.title;
+  f.type = document.getElementById('cf-type')?.value || f.type;
+  f.price = document.getElementById('cf-price')?.value || f.price;
+  f.price_period = document.getElementById('cf-period')?.value || f.price_period;
+  f.bedrooms = parseInt(document.getElementById('cf-beds')?.value) || f.bedrooms;
+  f.bathrooms = parseInt(document.getElementById('cf-baths')?.value) || f.bathrooms;
+  f.city = document.getElementById('cf-city')?.value || f.city;
+  f.state = document.getElementById('cf-state')?.value || f.state;
+  f.address = document.getElementById('cf-address')?.value || f.address;
+  f.description = document.getElementById('cf-desc')?.value || f.description;
+  f.whatsapp_number = document.getElementById('cf-wa')?.value || f.whatsapp_number;
+  f.youtube_url = document.getElementById('cf-yt')?.value || f.youtube_url;
+}
+
+function createStep2() {
+  readCreateStep1();
+  if (!state.createForm.title || !state.createForm.price || !state.createForm.city || !state.createForm.address) {
+    alert('Please fill in title, price, city, and address.');
+    return;
+  }
+  state.createStep = 2;
+  renderCreateForm();
+}
+
+function createStep3() {
+  state.createStep = 3;
+  renderCreateForm();
+}
+
+async function submitCreate(autoApprove) {
+  const btn = document.getElementById(autoApprove?'publish-btn':'draft-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+  const f = state.createForm;
+  try {
+    const created = await apiFetch('/listings', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...f,
+        price: parseFloat(f.price),
+        latitude: f.latitude ? parseFloat(f.latitude) : undefined,
+        longitude: f.longitude ? parseFloat(f.longitude) : undefined,
+      }),
+    });
+
+    // Upload photos
+    if (state.createPhotoFiles.length > 0) {
+      const fd = new FormData();
+      state.createPhotoFiles.forEach(p => fd.append('photos', p));
+      await fetch(`${API}/upload/photos/${created.id}`, {
+        method: 'POST',
+        headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
+        body: fd,
+      }).catch(()=>{});
+    }
+
+    // Submit for review
+    await apiFetch(`/listings/${created.id}/submit`, { method:'POST' }).catch(()=>{});
+
+    // Auto-approve if going live
+    if (autoApprove) {
+      await apiFetch(`/admin/listings/${created.id}/approve`, { method:'POST' }).catch(()=>{});
+    }
+
+    // Reset
+    state.createForm = { title:'', description:'', price:'', price_period:'annually', address:'', city:'', state:'', latitude:'', longitude:'', type:'self_contain', bedrooms:1, bathrooms:1, amenities:[], youtube_url:'', whatsapp_number:'', instagram_url:'', is_vacant:true };
+    state.createPhotos = [];
+    state.createPhotoFiles = [];
+    state.createStep = 1;
+
+    // Success
+    const container = document.getElementById('create-form-container');
+    container.innerHTML = `<div class="card card-p" style="max-width:400px;text-align:center;padding:40px;">
+      <div style="font-size:56px;margin-bottom:12px;">${autoApprove?'🚀':'🎉'}</div>
+      <div class="font-display font-bold" style="font-size:18px;color:var(--cream);">${autoApprove?'Space is live!':'Draft saved!'}</div>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">${autoApprove?'Your listing is now visible to students on the client app.':'Listing saved. Go to Pending to review and publish it.'}</p>
+      <div class="flex gap-3 justify-center mt-5">
+        <button class="btn btn-primary" onclick="showPage('listings')">View All Listings</button>
+        <button class="btn btn-ghost" onclick="state.createStep=1;renderCreateForm()">Create Another</button>
+      </div>
+    </div>`;
+  } catch(e) {
+    if (btn) { btn.disabled=false; btn.textContent = autoApprove?'🚀 Publish & Go Live':'Save as Draft'; }
+    alert('Failed: ' + e.message);
+  }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return String(s||'').replace(/"/g,'&quot;'); }
+function escJs(s) { return String(s||'').replace(/'/g,"\\'"); }
+
+// ── Close modals on overlay click ─────────────────────────────────────────────
+document.getElementById('reject-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeRejectModal(); });
+document.getElementById('edit-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeEditModal(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
 </html>
