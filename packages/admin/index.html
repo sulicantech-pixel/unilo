@@ -1064,7 +1064,7 @@ function renderCreateForm() {
         </div>
         <div class="flex gap-3 justify-center">
           <button class="btn btn-primary" onclick="submitCreate(true)" id="publish-btn">🚀 Publish & Go Live</button>
-          <button class="btn btn-ghost" onclick="submitCreate(false)" id="draft-btn">Save as Draft</button>
+          <button class="btn btn-ghost" onclick="submitCreate(false)" id="draft-btn">Save to Pending Queue</button>
         </div>
         <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="state.createStep=2;renderCreateForm()">← Back</button>
       </div>`;
@@ -1145,20 +1145,21 @@ async function submitCreate(autoApprove) {
     if (state.createPhotoFiles.length > 0) {
       const fd = new FormData();
       state.createPhotoFiles.forEach(p => fd.append('photos', p));
-      await fetch(`${API}/upload/photos/${created.id}`, {
-        method: 'POST',
-        headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
-        body: fd,
-      }).catch(()=>{});
+      try {
+        await fetch(`${API}/upload/photos/${created.id}`, {
+          method: 'POST',
+          headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
+          body: fd,
+        });
+      } catch(photoErr) { console.warn('Photo upload failed:', photoErr); }
     }
 
-    // Submit for review
-    await apiFetch(`/listings/${created.id}/submit`, { method:'POST' }).catch(()=>{});
-
-    // Auto-approve if going live
+    // head_admin creates listings as 'pending' directly — no /submit needed.
+    // Just call approve if the admin chose "Publish & Go Live".
     if (autoApprove) {
-      await apiFetch(`/admin/listings/${created.id}/approve`, { method:'POST' }).catch(()=>{});
+      await apiFetch(`/admin/listings/${created.id}/approve`, { method:'POST' });
     }
+    // "Save as Draft" keeps it as 'pending' in the review queue.
 
     // Reset
     state.createForm = { title:'', description:'', price:'', price_period:'annually', address:'', city:'', state:'', latitude:'', longitude:'', type:'self_contain', bedrooms:1, bathrooms:1, amenities:[], youtube_url:'', whatsapp_number:'', instagram_url:'', is_vacant:true };
@@ -1171,14 +1172,14 @@ async function submitCreate(autoApprove) {
     container.innerHTML = `<div class="card card-p" style="max-width:400px;text-align:center;padding:40px;">
       <div style="font-size:56px;margin-bottom:12px;">${autoApprove?'🚀':'🎉'}</div>
       <div class="font-display font-bold" style="font-size:18px;color:var(--cream);">${autoApprove?'Space is live!':'Draft saved!'}</div>
-      <p style="font-size:13px;color:var(--muted);margin-top:8px;">${autoApprove?'Your listing is now visible to students on the client app.':'Listing saved. Go to Pending to review and publish it.'}</p>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">${autoApprove?'Your listing is now visible to students on the client app.':'Listing saved to your Pending queue. Go there to review and approve it.'}</p>
       <div class="flex gap-3 justify-center mt-5">
         <button class="btn btn-primary" onclick="showPage('listings')">View All Listings</button>
         <button class="btn btn-ghost" onclick="state.createStep=1;renderCreateForm()">Create Another</button>
       </div>
     </div>`;
   } catch(e) {
-    if (btn) { btn.disabled=false; btn.textContent = autoApprove?'🚀 Publish & Go Live':'Save as Draft'; }
+    if (btn) { btn.disabled=false; btn.textContent = autoApprove?'🚀 Publish & Go Live':'Save to Pending Queue'; }
     alert('Failed: ' + e.message);
   }
 }
