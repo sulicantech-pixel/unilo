@@ -11,6 +11,7 @@ const listingRoutes   = require('./routes/listings');
 const adminRoutes     = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const uploadRoutes    = require('./routes/upload');
+const communityRoutes = require('./routes/community');
 
 
 const app = express();
@@ -76,6 +77,7 @@ app.use('/api/listings',                    listingRoutes);
 app.use('/api/admin',                       adminRoutes);
 app.use('/api/analytics', analyticsLimiter, analyticsRoutes);
 app.use('/api/upload',                      uploadRoutes);
+app.use('/api/community',                   communityRoutes);
 
 
 // ── Health check ──────────────────────────────────────────────────────────────
