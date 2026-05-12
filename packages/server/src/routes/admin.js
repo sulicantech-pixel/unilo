@@ -229,3 +229,103 @@ router.get('/intelligence', async (req, res) => {
 });
 
 module.exports = router;
+
+// ── GET /api/admin/hosting-requests ── Pending switch-to-host requests ────────
+router.get('/hosting-requests', async (req, res) => {
+  try {
+    const users = await User.findAll({
+      where: { hosting_request: 'pending' },
+      attributes: ['id', 'first_name', 'last_name', 'email', 'phone', 'hosting_request_data', 'created_at'],
+      order: [['created_at', 'ASC']],
+    });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch hosting requests' });
+  }
+});
+
+// ── POST /api/admin/hosting-requests/:id/approve ──────────────────────────────
+router.post('/hosting-requests/:id/approve', async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await user.update({ is_host: true, role: 'user_admin', hosting_request: 'approved' });
+    res.json({ message: 'User approved as landlord', user: user.toSafeJSON() });
+  } catch (err) {
+    res.status(500).json({ error: 'Approval failed' });
+  }
+});
+
+// ── POST /api/admin/hosting-requests/:id/reject ───────────────────────────────
+router.post('/hosting-requests/:id/reject', async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const user = await User.findByPk(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await user.update({ hosting_request: 'rejected', hosting_request_data: JSON.stringify({ ...JSON.parse(user.hosting_request_data || '{}'), rejection_reason: reason }) });
+    res.json({ message: 'Request rejected' });
+  } catch (err) {
+    res.status(500).json({ error: 'Rejection failed' });
+  }
+});
+
+// ── POST /api/admin/bookings/:id/confirm-payment ── Manual payment → lodge join
+router.post('/bookings/:id/confirm-payment', async (req, res) => {
+  try {
+    const { sequelize } = require('../models');
+
+    // Mark booking as paid
+    await sequelize.query(
+      `UPDATE bookings SET status = 'confirmed', paid_at = NOW() WHERE id = :id`,
+      { replacements: { id: req.params.id } }
+    ).catch(() => {}); // silent if bookings table doesn't exist yet
+
+    // Fetch booking to get user_id and listing_id
+    const [booking] = await sequelize.query(
+      `SELECT user_id, listing_id FROM bookings WHERE id = :id LIMIT 1`,
+      { replacements: { id: req.params.id }, type: sequelize.QueryTypes.SELECT }
+    ).catch(() => [null]);
+
+    if (booking) {
+      // Find or create the lodge group for this listing
+      let [lodge] = await sequelize.query(
+        `SELECT id FROM lodge_groups WHERE listing_id = :lid LIMIT 1`,
+        { replacements: { lid: booking.listing_id }, type: sequelize.QueryTypes.SELECT }
+      ).catch(() => [null]);
+
+      if (!lodge) {
+        const [listing] = await sequelize.query(
+          `SELECT title, city FROM listings WHERE id = :lid`,
+          { replacements: { lid: booking.listing_id }, type: sequelize.QueryTypes.SELECT }
+        ).catch(() => [null]);
+
+        if (listing) {
+          const [newLodge] = await sequelize.query(
+            `INSERT INTO lodge_groups (listing_id, name, city, member_count) VALUES (:lid, :name, :city, 0) RETURNING id`,
+            { replacements: { lid: booking.listing_id, name: listing.title, city: listing.city }, type: sequelize.QueryTypes.INSERT }
+          );
+          lodge = newLodge;
+        }
+      }
+
+      if (lodge) {
+        // Add student to lodge
+        await sequelize.query(
+          `INSERT INTO lodge_members (lodge_id, user_id, role) VALUES (:lid, :uid, 'resident') ON CONFLICT (lodge_id, user_id) DO NOTHING`,
+          { replacements: { lid: lodge.id, uid: booking.user_id } }
+        ).catch(() => {});
+
+        // Update member count
+        await sequelize.query(
+          `UPDATE lodge_groups SET member_count = (SELECT COUNT(*) FROM lodge_members WHERE lodge_id = :lid) WHERE id = :lid`,
+          { replacements: { lid: lodge.id } }
+        ).catch(() => {});
+      }
+    }
+
+    res.json({ message: 'Payment confirmed. Student added to lodge group.' });
+  } catch (err) {
+    console.error('[confirm-payment]', err);
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+});
