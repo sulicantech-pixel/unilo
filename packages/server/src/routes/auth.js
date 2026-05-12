@@ -106,42 +106,47 @@ router.get('/me', authenticate, (req, res) => {
 });
 
 
-// ── PATCH /api/auth/me ─── Update own profile ─────────────────────────────────
+// ── PATCH /api/auth/me ── Update own profile ──────────────────────────────────
 router.patch('/me', authenticate, async (req, res) => {
   try {
-    const allowed = [
-      'first_name', 'last_name', 'phone', 'whatsapp', 'contact_preference',
-      'university', 'course', 'department', 'level',
-      'business_name', 'property_address', 'room_count', 'avatar_url',
-    ];
+    const allowed = ['first_name','last_name','phone','whatsapp','university','department','level','business_name','avatar_url'];
     const updates = {};
-    allowed.forEach((k) => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
     await req.user.update(updates);
     res.json({ user: req.user.toSafeJSON() });
   } catch (err) {
-    console.error('[patch /me]', err);
     res.status(500).json({ message: 'Failed to update profile' });
   }
 });
 
-// ── POST /api/auth/change-password ───────────────────────────────────────────
-router.post('/change-password', authenticate, [
-  body('current_password').notEmpty().withMessage('Current password required'),
-  body('new_password').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
-], async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(422).json({ message: errors.array()[0].msg });
-
+// ── POST /api/auth/change-password ────────────────────────────────────────────
+router.post('/change-password', authenticate, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
+    if (!new_password || new_password.length < 6) return res.status(422).json({ message: 'Password must be at least 6 characters' });
     const valid = await req.user.checkPassword(current_password);
     if (!valid) return res.status(401).json({ message: 'Current password is incorrect' });
-
     await req.user.update({ password_hash: new_password });
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
-    console.error('[change-password]', err);
     res.status(500).json({ message: 'Failed to change password' });
   }
 });
+
+// ── POST /api/auth/request-hosting ── Student applies to become landlord ──────
+router.post('/request-hosting', authenticate, async (req, res) => {
+  try {
+    if (req.user.is_host) return res.status(400).json({ message: 'Already a host' });
+    const { business_name, phone, address, state, id_type, id_number, note } = req.body;
+    if (!phone) return res.status(422).json({ message: 'Phone number is required' });
+    await req.user.update({
+      hosting_request: 'pending',
+      hosting_request_data: JSON.stringify({ business_name, phone, address, state, id_type, id_number, note, submitted_at: new Date().toISOString() }),
+    });
+    res.json({ message: 'Hosting request submitted. Under review within 24 hours.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to submit request' });
+  }
+});
+
 module.exports = router;
