@@ -10,6 +10,7 @@ import FinancePage from './pages/FinancePage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import MyListingsPage from './pages/MyListingsPage';
 import CreateListingPage from './pages/CreateListingPage';
+import HostingRequestsPage from './pages/HostingRequestsPage';
 
 function RequireAuth({ children, roles }) {
   const { isAuthenticated, user } = useAdminAuth();
@@ -20,74 +21,34 @@ function RequireAuth({ children, roles }) {
 
 export default function App() {
   const { user } = useAdminAuth();
-  const role = user?.role;
-  const isHeadAdmin = role === 'head_admin';
-  const isAnalyst   = role === 'analyst';
-  const isLandlord  = role === 'user_admin';
-
-  // Default landing page per role
-  const defaultRoute = isHeadAdmin || isAnalyst ? '/dashboard' : '/my-listings';
+  const isHeadAdmin = user?.role === 'head_admin';
+  const defaultRoute = isHeadAdmin ? '/dashboard' : '/my-listings';
 
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
       <Route path="/" element={
-        <RequireAuth>
-          <AdminLayout />
-        </RequireAuth>
+        <RequireAuth><AdminLayout /></RequireAuth>
       }>
         <Route index element={<Navigate to={defaultRoute} replace />} />
 
-        {/* Landlord routes */}
-        <Route path="my-listings" element={<MyListingsPage />} />
-        <Route path="listing/new" element={<CreateListingPage />} />
+        {/* All authenticated users */}
+        <Route path="my-listings"  element={<MyListingsPage />} />
+        <Route path="listing/new"  element={<CreateListingPage />} />
 
-        {/* Head admin + analyst routes */}
-        <Route path="dashboard"
-          element={
-            <RequireAuth roles={['head_admin', 'analyst']}>
-              <DashboardPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="listings"
-          element={
-            <RequireAuth roles={['head_admin', 'analyst']}>
-              <AllListingsPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="users"
-          element={
-            <RequireAuth roles={['head_admin', 'analyst']}>
-              <UsersPage />
-            </RequireAuth>
-          }
-        />
-        <Route path="finance"
-          element={
-            <RequireAuth roles={['head_admin', 'analyst']}>
-              <FinancePage />
-            </RequireAuth>
-          }
-        />
-        <Route path="analytics"
-          element={
-            <RequireAuth roles={['head_admin', 'analyst']}>
-              <AnalyticsPage />
-            </RequireAuth>
-          }
-        />
+        {/* Head admin + analyst */}
+        <Route path="dashboard"  element={<RequireAuth roles={['head_admin','analyst']}><DashboardPage /></RequireAuth>} />
+        <Route path="listings"   element={<RequireAuth roles={['head_admin','analyst']}><AllListingsPage /></RequireAuth>} />
+        <Route path="users"      element={<RequireAuth roles={['head_admin','analyst']}><UsersPage /></RequireAuth>} />
+        <Route path="finance"    element={<RequireAuth roles={['head_admin','analyst']}><FinancePage /></RequireAuth>} />
+        <Route path="analytics"  element={<RequireAuth roles={['head_admin','analyst']}><AnalyticsPage /></RequireAuth>} />
 
         {/* Head admin only */}
         <Route path="pending"
-          element={
-            <RequireAuth roles={['head_admin']}>
-              <PendingListingsPage />
-            </RequireAuth>
-          }
-        />
+          element={<RequireAuth roles={['head_admin']}><PendingListingsPage /></RequireAuth>} />
+        <Route path="hosting-requests"
+          element={<RequireAuth roles={['head_admin']}><HostingRequestsPage /></RequireAuth>} />
       </Route>
     </Routes>
   );
