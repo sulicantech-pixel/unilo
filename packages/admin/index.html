@@ -475,7 +475,8 @@
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
-const API = (window.VITE_API_URL || '/api');
+// ── API base URL ─────────────────────────────────────────────────────────────
+const API = 'https://unilo-api-4jc6.onrender.com/api';
 let TOKEN = (() => { try { return JSON.parse(localStorage.getItem('unilo-admin-auth'))?.token || ''; } catch { return ''; } })();
 
 const state = {
@@ -1189,12 +1190,94 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 function escAttr(s) { return String(s||'').replace(/"/g,'&quot;'); }
 function escJs(s) { return String(s||'').replace(/'/g,"\\'"); }
 
+
+// ── Login screen ──────────────────────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.querySelector('.layout').style.display = 'none';
+  // Show what API URL we're hitting (helps debug)
+  const info = document.getElementById('login-api-info');
+  if (info) info.textContent = `API: ${API}`;
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('.layout').style.display = 'flex';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
+    if (data.user?.role !== 'head_admin') throw new Error('Not an admin account');
+
+    TOKEN = data.token;
+    localStorage.setItem('unilo-admin-auth', JSON.stringify({ token: data.token, user: data.user }));
+    hideLoginScreen();
+    loadDashboard();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Sign in →';
+  }
+}
+
 // ── Close modals on overlay click ─────────────────────────────────────────────
 document.getElementById('reject-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeRejectModal(); });
 document.getElementById('edit-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeEditModal(); });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadDashboard();
+// Read stored token
+TOKEN = (() => {
+  try { return JSON.parse(localStorage.getItem('unilo-admin-auth'))?.token || ''; } catch { return ''; }
+})();
+
+if (!TOKEN) {
+  showLoginScreen();
+} else {
+  loadDashboard();
+}
 </script>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="hidden" style="position:fixed;inset:0;background:var(--ink);display:flex;align-items:center;justify-content:center;z-index:200;">
+  <div style="width:100%;max-width:380px;padding:16px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:32px;color:var(--brand);">Unilo</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px;">Admin Dashboard</div>
+    </div>
+    <div class="card card-p" style="padding:28px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--cream);margin-bottom:20px;">Sign in</div>
+      <div id="login-error" class="hidden" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--danger);margin-bottom:16px;"></div>
+      <div style="margin-bottom:14px;">
+        <label class="input-label">Email</label>
+        <input class="input" id="login-email" type="email" value="admin@unilo.ng" placeholder="admin@unilo.ng" />
+      </div>
+      <div style="margin-bottom:20px;">
+        <label class="input-label">Password</label>
+        <input class="input" id="login-password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()" id="login-btn">Sign in →</button>
+      <div style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center;" id="login-api-info"></div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
