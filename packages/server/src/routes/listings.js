@@ -122,10 +122,10 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
 
       if (!rows.length) return [];
 
-      // Fetch photos separately
+      // Fetch photos separately using Op.in
       const ids = rows.map(r => r.id);
       const photos = await Photo.findAll({
-        where: { listing_id: ids },
+        where: { listing_id: { [Op.in]: ids } },
         order: [['order_index', 'ASC']],
       });
 
@@ -217,7 +217,7 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
     res.json(sections);
   } catch (err) {
     console.error('[homepage-sections]', err);
-    res.status(500).json({ error: 'Failed to fetch homepage sections' });
+    res.status(500).json({ error: 'Failed to fetch homepage sections', detail: err.message });
   }
 });
 
