@@ -47,7 +47,7 @@ router.get('/', optionalAuth, async (req, res) => {
         {
           model: User,
           as: 'landlord',
-          attributes: ['id', 'name', 'business_name', 'phone'],
+          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
         },
       ],
       order: [
@@ -99,7 +99,7 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
     const baseWhere = { status: 'approved' };
     const include = [
       { model: Photo, as: 'photos', required: false },
-      { model: User,  as: 'landlord', attributes: ['id', 'name', 'business_name', 'phone'] },
+      { model: User,  as: 'landlord', attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'] },
     ];
     const order = [
       ['created_at', 'DESC'],
@@ -245,7 +245,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         {
           model: User,
           as: 'landlord',
-          attributes: ['id', 'name', 'business_name', 'phone', 'whatsapp_number'],
+          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
         },
       ],
     });
