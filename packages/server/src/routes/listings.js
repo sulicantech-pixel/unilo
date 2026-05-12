@@ -42,7 +42,7 @@ router.get('/', optionalAuth, async (req, res) => {
           model: User,
           as: 'landlord',
           required: false,
-          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
+          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone'],
         },
       ],
       order: [['created_at', 'DESC']],
@@ -113,7 +113,7 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
             model: User,
             as: 'landlord',
             required: false,
-            attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
+            attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone'],
           },
         ],
         order: [['created_at', 'DESC']],
@@ -265,7 +265,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
         {
           model: User,
           as: 'landlord',
-          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
+          attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone'],
         },
       ],
     });
