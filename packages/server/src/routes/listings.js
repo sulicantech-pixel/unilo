@@ -39,31 +39,36 @@ router.get('/', optionalAuth, async (req, res) => {
       where,
       include: [
         {
-          model: Photo,
-          as: 'photos',
-          required: false,
-          separate: false,
-        },
-        {
           model: User,
           as: 'landlord',
+          required: false,
           attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
         },
       ],
-      order: [
-        ['created_at', 'DESC'],
-        [{ model: Photo, as: 'photos' }, 'order_index', 'ASC'],
-      ],
+      order: [['created_at', 'DESC']],
       limit: parseInt(limit),
       offset,
       distinct: true,
     });
 
+    // Fetch photos separately to avoid ORDER + LIMIT conflict
+    const listingIds = rows.map(r => r.id);
+    const allPhotos = listingIds.length ? await Photo.findAll({
+      where: { listing_id: listingIds },
+      order: [['order_index', 'ASC']],
+    }) : [];
+
+    const photoMap = {};
+    allPhotos.forEach(p => {
+      if (!photoMap[p.listing_id]) photoMap[p.listing_id] = [];
+      photoMap[p.listing_id].push(p.toJSON());
+    });
+
     const listings = rows.map((listing) => {
       const data = listing.toJSON();
-      const photos = data.photos || [];
+      const photos = photoMap[data.id] || [];
       const cover = photos.find((p) => p.is_cover) || photos[0] || null;
-      return { ...data, cover_photo: cover };
+      return { ...data, photos, cover_photo: cover };
     });
 
     if (search || city) {
@@ -97,29 +102,44 @@ router.get('/homepage-sections', optionalAuth, async (req, res) => {
     const { uni = '', tab = 'all' } = req.query;
 
     const baseWhere = { status: 'approved' };
-    const include = [
-      { model: Photo, as: 'photos', required: false },
-      { model: User,  as: 'landlord', attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'] },
-    ];
-    const order = [
-      ['created_at', 'DESC'],
-      [{ model: Photo, as: 'photos' }, 'order_index', 'ASC'],
-    ];
 
-    // Helper: run a query and return plain objects with cover_photo resolved
+    // Helper: fetch listings then attach photos separately to avoid
+    // Sequelize ORDER + LIMIT conflict with associated models
     const fetchSection = async (where, limit = 8) => {
       const rows = await Listing.findAll({
         where: { ...baseWhere, ...where },
-        include,
-        order,
+        include: [
+          {
+            model: User,
+            as: 'landlord',
+            required: false,
+            attributes: ['id', 'first_name', 'last_name', 'business_name', 'phone', 'whatsapp_number'],
+          },
+        ],
+        order: [['created_at', 'DESC']],
         limit,
-        distinct: true,
       });
-      return rows.map((l) => {
-        const data   = l.toJSON();
-        const photos = data.photos || [];
-        const cover  = photos.find((p) => p.is_cover) || photos[0] || null;
-        return { ...data, cover_photo: cover };
+
+      if (!rows.length) return [];
+
+      // Fetch photos separately
+      const ids = rows.map(r => r.id);
+      const photos = await Photo.findAll({
+        where: { listing_id: ids },
+        order: [['order_index', 'ASC']],
+      });
+
+      const photosByListing = {};
+      photos.forEach(p => {
+        if (!photosByListing[p.listing_id]) photosByListing[p.listing_id] = [];
+        photosByListing[p.listing_id].push(p.toJSON());
+      });
+
+      return rows.map(l => {
+        const data  = l.toJSON();
+        const pList = photosByListing[data.id] || [];
+        const cover = pList.find(p => p.is_cover) || pList[0] || null;
+        return { ...data, photos: pList, cover_photo: cover };
       });
     };
 
