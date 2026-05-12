@@ -327,7 +327,7 @@
     <div class="sidebar-user">
       <div class="user-name">Patrick Unilo</div>
       <div class="user-email">admin@unilo.ng</div>
-      <button class="sign-out">Sign out →</button>
+      <button class="sign-out" onclick="signOut()">Sign out →</button>
     </div>
   </aside>
 
@@ -500,17 +500,27 @@ const state = {
 };
 
 // ── API helpers ───────────────────────────────────────────────────────────────
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(API + path, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
-      ...(opts.headers || {}),
-    },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+async function apiFetch(path, opts = {}, attempt = 1) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000); // 90s for Render cold start
+  try {
+    const res = await fetch(API + path, {
+      ...opts,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+        ...(opts.headers || {}),
+      },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  } catch(e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') throw new Error('Server is taking too long to respond. Render may be waking up — please try again.');
+    throw e;
+  }
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -1067,7 +1077,7 @@ function renderCreateForm() {
           <button class="btn btn-primary" onclick="submitCreate(true)" id="publish-btn">🚀 Publish & Go Live</button>
           <button class="btn btn-ghost" onclick="submitCreate(false)" id="draft-btn">Save to Pending Queue</button>
         </div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="state.createStep=2;renderCreateForm()">← Back</button>
+        <p id="publish-hint" style="font-size:11px;margin-top:10px;min-height:16px;"></p><button class="btn btn-ghost btn-sm" style="margin-top:4px;" onclick="state.createStep=2;renderCreateForm()">← Back</button>
       </div>`;
   }
 }
@@ -1130,6 +1140,12 @@ function createStep3() {
 async function submitCreate(autoApprove) {
   const btn = document.getElementById(autoApprove?'publish-btn':'draft-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+
+  // Show waking-up warning after 5 seconds
+  const wakeTimer = setTimeout(() => {
+    const hint = document.getElementById('publish-hint');
+    if (hint) { hint.textContent = '⏳ Waking up server (Render free tier sleeps) — please wait…'; hint.style.color = 'var(--warning)'; }
+  }, 5000);
   const f = state.createForm;
   try {
     const created = await apiFetch('/listings', {
@@ -1162,6 +1178,7 @@ async function submitCreate(autoApprove) {
     }
     // "Save as Draft" keeps it as 'pending' in the review queue.
 
+    clearTimeout(wakeTimer);
     // Reset
     state.createForm = { title:'', description:'', price:'', price_period:'annually', address:'', city:'', state:'', latitude:'', longitude:'', type:'self_contain', bedrooms:1, bathrooms:1, amenities:[], youtube_url:'', whatsapp_number:'', instagram_url:'', is_vacant:true };
     state.createPhotos = [];
@@ -1180,7 +1197,10 @@ async function submitCreate(autoApprove) {
       </div>
     </div>`;
   } catch(e) {
+    clearTimeout(wakeTimer);
     if (btn) { btn.disabled=false; btn.textContent = autoApprove?'🚀 Publish & Go Live':'Save to Pending Queue'; }
+    const hint = document.getElementById('publish-hint');
+    if (hint) hint.textContent = '';
     alert('Failed: ' + e.message);
   }
 }
@@ -1190,6 +1210,13 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 function escAttr(s) { return String(s||'').replace(/"/g,'&quot;'); }
 function escJs(s) { return String(s||'').replace(/'/g,"\\'"); }
 
+
+// ── Sign out ─────────────────────────────────────────────────────────────────
+function signOut() {
+  localStorage.removeItem('unilo-admin-auth');
+  TOKEN = '';
+  showLoginScreen();
+}
 
 // ── Login screen ──────────────────────────────────────────────────────────────
 function showLoginScreen() {
