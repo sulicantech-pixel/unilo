@@ -1,4 +1,14 @@
 {
   "buildCommand": "npm install --prefix ../.. && node ../../node_modules/vite/bin/vite.js build",
-  "installCommand": "echo skip"
+  "installCommand": "echo skip",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://unilo-api-4jc6.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
