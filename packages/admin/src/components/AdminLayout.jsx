@@ -5,7 +5,8 @@ import api from '../lib/api';
 
 const HEAD_NAV = [
   { to: '/dashboard',  icon: '⬡', label: 'Intelligence' },
-  { to: '/pending',    icon: '⏳', label: 'Pending',     badge: true },
+  { to: '/pending',           icon: '⏳', label: 'Pending',          badge: true },
+  { to: '/hosting-requests',  icon: '🏠', label: 'Hosting Requests', badge: false },
   { to: '/listings',   icon: '🏠', label: 'All Listings' },
   { to: '/users',      icon: '👥', label: 'Users' },
   { to: '/finance',    icon: '💰', label: 'Finance' },
