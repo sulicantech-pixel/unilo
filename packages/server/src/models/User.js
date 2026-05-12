@@ -27,21 +27,21 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
     },
 
-    // ── User type: student | non_student ─────────────────────────────────────
+    // ── User type ─────────────────────────────────────────────────────────────
     user_type: {
       type: DataTypes.ENUM('student', 'non_student'),
       allowNull: false,
       defaultValue: 'student',
     },
 
-    // ── Is this user also a host/landlord? (can be true for any user_type) ───
+    // ── Is host/landlord ──────────────────────────────────────────────────────
     is_host: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
       allowNull: false,
     },
 
-    // ── Admin role (kept for backward compat) ─────────────────────────────────
+    // ── Admin role ────────────────────────────────────────────────────────────
     role: {
       type: DataTypes.ENUM('head_admin', 'user_admin', 'viewer'),
       defaultValue: 'viewer',
@@ -49,61 +49,53 @@ module.exports = (sequelize, DataTypes) => {
     },
 
     // ── Contact ───────────────────────────────────────────────────────────────
-    phone: {
-      type: DataTypes.STRING,
-    },
-    whatsapp: {
-      type: DataTypes.STRING, // separate WhatsApp number if different
-    },
+    phone: { type: DataTypes.STRING },
+    whatsapp: { type: DataTypes.STRING },
     contact_preference: {
       type: DataTypes.ENUM('phone', 'whatsapp', 'both'),
       defaultValue: 'both',
     },
 
-    // ── Student-specific fields ───────────────────────────────────────────────
-    university: {
+    // ── Student-specific ──────────────────────────────────────────────────────
+    university:  { type: DataTypes.STRING },
+    course:      { type: DataTypes.STRING },
+    department:  { type: DataTypes.STRING },
+    level:       { type: DataTypes.STRING },
+
+    // ── Host-specific ─────────────────────────────────────────────────────────
+    property_address:  { type: DataTypes.TEXT },
+    property_lat:      { type: DataTypes.FLOAT },
+    property_lng:      { type: DataTypes.FLOAT },
+    property_place_id: { type: DataTypes.STRING },
+    room_count:        { type: DataTypes.INTEGER },
+    business_name:     { type: DataTypes.STRING },
+
+    // ── Hosting request (switch-to-host flow) ─────────────────────────────────
+    // Values: null | 'pending' | 'approved' | 'rejected'
+    hosting_request: {
       type: DataTypes.STRING,
+      defaultValue: null,
+      allowNull: true,
     },
-    course: {
-      type: DataTypes.STRING, // e.g. "Computer Science"
-    },
-    department: {
-      type: DataTypes.STRING, // e.g. "Faculty of Engineering"
-    },
-    level: {
-      type: DataTypes.STRING, // e.g. "300L"
+    // Stores the JSON blob submitted with the request (address, ID, phone, etc.)
+    hosting_request_data: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
 
-    // ── Host-specific fields ──────────────────────────────────────────────────
-    property_address: {
-      type: DataTypes.TEXT,
-    },
-    property_lat: {
-      type: DataTypes.FLOAT,
-    },
-    property_lng: {
-      type: DataTypes.FLOAT,
-    },
-    property_place_id: {
-      type: DataTypes.STRING, // Google Places ID for precision
-    },
-    room_count: {
-      type: DataTypes.INTEGER,
-    },
-    business_name: {
-      type: DataTypes.STRING,
-    },
+    // ── Referral ──────────────────────────────────────────────────────────────
+    referred_by:     { type: DataTypes.UUID, allowNull: true },
+    referral_credits: { type: DataTypes.INTEGER, defaultValue: 0 },
 
     // ── Misc ──────────────────────────────────────────────────────────────────
-    avatar_url: {
-      type: DataTypes.STRING,
-    },
-    is_suspended: {
+    avatar_url:   { type: DataTypes.STRING },
+    is_suspended: { type: DataTypes.BOOLEAN, defaultValue: false },
+    bank_account: { type: DataTypes.JSONB },
+
+    // Renter flag — non-student booking on behalf of a family member
+    renter_mode: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
-    },
-    bank_account: {
-      type: DataTypes.JSONB,
     },
   }, {
     tableName: 'users',
