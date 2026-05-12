@@ -355,25 +355,46 @@ router.post('/', authenticate, requireRole('user_admin', 'head_admin'), async (r
       is_vacant,
     } = req.body;
 
+    // Sanitize — strip empty strings to null so NOT NULL constraints don't fire
+    // and URL validators don't choke on empty strings
+    const clean = (v) => (v === '' || v === undefined ? null : v);
+    const cleanUrl = (v) => {
+      if (!v || v.trim() === '') return null;
+      // Accept URLs without protocol by prepending https://
+      if (!/^https?:\/\//i.test(v.trim())) return null;
+      return v.trim();
+    };
+
     // head_admin listings skip straight to pending (ready for their own approval queue)
     // user_admin (landlord) listings start as draft until they explicitly submit
     const initialStatus = req.user.role === 'head_admin' ? 'pending' : 'draft';
 
     const listing = await Listing.create({
-      title, description, price, price_period,
-      address, city, state, latitude, longitude,
-      type, bedrooms, bathrooms,
-      amenities: amenities || [],
-      youtube_url, whatsapp_number, instagram_url,
-      is_vacant: is_vacant !== undefined ? is_vacant : true,
-      landlord_id: req.user.id,
-      status: initialStatus,
+      title:         clean(title),
+      description:   clean(description),
+      price:         parseFloat(price),
+      price_period:  price_period || 'annually',
+      address:       clean(address),
+      city:          clean(city),
+      state:         clean(state) || clean(city) || 'Nigeria', // fallback so NOT NULL passes
+      latitude:      latitude  ? parseFloat(latitude)  : null,
+      longitude:     longitude ? parseFloat(longitude) : null,
+      type:          type || 'self_contain',
+      bedrooms:      parseInt(bedrooms)  || 1,
+      bathrooms:     parseInt(bathrooms) || 1,
+      amenities:     amenities || [],
+      youtube_url:   cleanUrl(youtube_url),
+      whatsapp_number: clean(whatsapp_number),
+      instagram_url: cleanUrl(instagram_url),
+      is_vacant:     is_vacant !== undefined ? is_vacant : true,
+      landlord_id:   req.user.id,
+      status:        initialStatus,
     });
 
     res.status(201).json(listing);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create listing' });
+    console.error('[create listing]', err);
+    res.status(500).json({ error: 'Failed to create listing', detail: err.message });
   }
 });
 
