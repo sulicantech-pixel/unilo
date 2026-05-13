@@ -1,389 +1,110 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import api from '../lib/api';
+/**
+ * BecomeHostPage — redirects to the Switch-to-Hosting flow
+ * This page is no longer the primary path. Hosting requests now
+ * go through the ProfilePage modal (Submit → Admin reviews → Approve).
+ *
+ * This page catches anyone landing on /become-host and redirects them
+ * cleanly, or shows a summary if they're already logged in.
+ */
+import { useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
+
+const BRAND = '#ff6b00';
+const GREEN = '#10b981';
+
+const HouseIcon = ({ size = 32, color = BRAND }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+    <polyline points="9 22 9 12 15 12 15 22"/>
+  </svg>
+);
+const CheckIcon = ({ color = GREEN }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+const ArrowRightIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <path d="M5 12h14M13 6l6 6-6 6"/>
+  </svg>
+);
+
+const BENEFITS = [
+  'Reach thousands of students near your university',
+  'No broker fees — list for free',
+  'Admin-reviewed to keep the platform trusted',
+  'Get added to lodge groups when students book',
+  'Track views and inquiries in your dashboard',
+];
 
 export default function BecomeHostPage() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { user, isAuthenticated } = useAuthStore();
 
-  const [step, setStep] = useState(1); // 1: verify, 2: contact, 3: bank, 4: complete
-  const [formData, setFormData] = useState({
-    // Step 2: Contact
-    phone: user?.phone || '',
-    whatsapp: '',
-    contactPreference: 'both', // phone, whatsapp, both
+  // If already a host → go to admin
+  useEffect(() => {
+    if (user?.is_host) {
+      window.location.href = 'https://unilo-admin.vercel.app';
+    }
+  }, [user]);
 
-    // Step 3: Banking
-    bankName: '',
-    accountNumber: '',
-    accountHolderName: user?.name || '',
-  });
+  return (
+    <div style={{ minHeight: '100dvh', background: '#0a0a0a', fontFamily: 'DM Sans, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px 80px' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22,1,0.36,1] }}
+        style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}
+      >
+        {/* Icon */}
+        <div style={{ width: 72, height: 72, borderRadius: 20, background: `${BRAND}15`, border: `1px solid ${BRAND}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+          <HouseIcon size={32} color={BRAND} />
+        </div>
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+        {/* Heading */}
+        <h1 style={{ fontFamily: 'Syne, sans-serif', fontSize: 26, fontWeight: 900, color: '#f5f0e8', margin: '0 0 8px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+          List your rooms on Unilo
+        </h1>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.42)', marginBottom: 28, lineHeight: 1.65 }}>
+          Reach students actively searching for accommodation near their campus. Hosting is free to apply for.
+        </p>
 
-  const becomeHostMutation = useMutation({
-    mutationFn: () =>
-      api.post('/auth/become-host', {
-        ...formData,
-        userId: user?.id,
-      }),
-    onSuccess: (response) => {
-      setSuccess('✅ You are now a host! Manage your listings and start earning.');
-      setStep(4);
-      setTimeout(() => navigate('/'), 3000);
-    },
-    onError: (err) => {
-      setError(err.response?.data?.error || 'Failed to become a host');
-    },
-  });
-
-  const handleFieldChange = (key, val) => {
-    setFormData((prev) => ({ ...prev, [key]: val }));
-    setError('');
-  };
-
-  // ─── STEP 1: VERIFY EMAIL ───────────────────────────────────────────
-  if (step === 1) {
-    return (
-      <div className="min-h-dvh bg-navy flex items-center justify-center p-4 pb-24">
-        <div className="max-w-md w-full">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Step 1 of 4</span>
-              <span className="text-xs text-brand font-semibold">25%</span>
+        {/* Benefits */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18, padding: '16px 20px', marginBottom: 24, textAlign: 'left' }}>
+          {BENEFITS.map((b, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: i < BENEFITS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+              <span style={{ flexShrink: 0, marginTop: 1 }}><CheckIcon /></span>
+              <p style={{ fontSize: 13, color: '#f5f0e8', margin: 0, lineHeight: 1.5 }}>{b}</p>
             </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-1/4 bg-brand transition-all" />
-            </div>
-          </div>
+          ))}
+        </div>
 
-          <h1 className="font-display font-bold text-2xl text-cream mb-2">
-            Become a Host
-          </h1>
-          <p className="text-muted text-sm mb-6">
-            List your property and start earning with Unilo
-          </p>
-
-          {/* Info Box */}
-          <div className="bg-brand/10 border border-brand/30 rounded-lg p-4 mb-6">
-            <p className="text-cream text-sm font-medium mb-2">
-              ✓ Email verified
+        {/* CTA */}
+        {isAuthenticated ? (
+          <motion.button
+            onClick={() => navigate('/profile')}
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            style={{ width: '100%', background: BRAND, color: '#fff', border: 'none', borderRadius: 14, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+            Apply to host in your profile <ArrowRightIcon />
+          </motion.button>
+        ) : (
+          <>
+            <motion.button
+              onClick={() => navigate('/register?role=landlord')}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+              style={{ width: '100%', background: BRAND, color: '#fff', border: 'none', borderRadius: 14, padding: '15px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12 }}>
+              Sign up as a Landlord <ArrowRightIcon />
+            </motion.button>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
+              Already have an account?{' '}
+              <Link to="/login" style={{ color: BRAND, fontWeight: 600, textDecoration: 'none' }}>Log in</Link>
+              {' '}and apply from your profile.
             </p>
-            <p className="text-muted text-xs">{user?.email}</p>
-          </div>
-
-          {/* Next Button */}
-          <button
-            onClick={() => setStep(2)}
-            className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-3 rounded-lg transition"
-          >
-            Continue
-          </button>
-
-          <p className="text-muted text-xs text-center mt-4">
-            We'll help you set up your hosting account in just a few minutes
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── STEP 2: CONTACT INFORMATION ────────────────────────────────────
-  if (step === 2) {
-    return (
-      <div className="min-h-dvh bg-navy flex items-center justify-center p-4 pb-24">
-        <div className="max-w-md w-full">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Step 2 of 4</span>
-              <span className="text-xs text-brand font-semibold">50%</span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-1/2 bg-brand transition-all" />
-            </div>
-          </div>
-
-          <h1 className="font-display font-bold text-2xl text-cream mb-2">
-            Contact Information
-          </h1>
-          <p className="text-muted text-sm mb-6">
-            How should we reach you about your listings?
-          </p>
-
-          {/* Form */}
-          <div className="space-y-4 mb-6">
-            {/* Phone */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">Phone</label>
-              <input
-                type="tel"
-                placeholder="+234 801 234 5678"
-                value={formData.phone}
-                onChange={(e) => handleFieldChange('phone', e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream placeholder-muted/50"
-              />
-            </div>
-
-            {/* WhatsApp */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">
-                WhatsApp (optional)
-              </label>
-              <input
-                type="tel"
-                placeholder="+234 801 234 5678"
-                value={formData.whatsapp}
-                onChange={(e) =>
-                  handleFieldChange('whatsapp', e.target.value)
-                }
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream placeholder-muted/50"
-              />
-            </div>
-
-            {/* Contact Preference */}
-            <div>
-              <label className="text-xs text-muted block mb-2">
-                How should we contact you?
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'phone', label: '📱 Phone' },
-                  { value: 'whatsapp', label: '💬 WhatsApp' },
-                  { value: 'both', label: '🔔 Both' },
-                ].map((option) => (
-                  <label
-                    key={option.value}
-                    className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-white/5"
-                  >
-                    <input
-                      type="radio"
-                      name="preference"
-                      value={option.value}
-                      checked={formData.contactPreference === option.value}
-                      onChange={(e) =>
-                        handleFieldChange('contactPreference', e.target.value)
-                      }
-                      className="w-4 h-4 accent-brand"
-                    />
-                    <span className="text-cream text-sm">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-danger text-sm bg-danger/10 p-3 rounded mb-4">
-              {error}
-            </p>
-          )}
-
-          {/* Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep(1)}
-              className="flex-1 bg-white/5 hover:bg-white/10 text-cream py-3 rounded-lg transition"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => {
-                if (!formData.phone) {
-                  setError('Phone number is required');
-                  return;
-                }
-                setStep(3);
-              }}
-              className="flex-1 bg-brand hover:bg-brand/90 text-navy font-semibold py-3 rounded-lg transition"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── STEP 3: BANKING INFORMATION ────────────────────────────────────
-  if (step === 3) {
-    return (
-      <div className="min-h-dvh bg-navy flex items-center justify-center p-4 pb-24">
-        <div className="max-w-md w-full">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Step 3 of 4</span>
-              <span className="text-xs text-brand font-semibold">75%</span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-3/4 bg-brand transition-all" />
-            </div>
-          </div>
-
-          <h1 className="font-display font-bold text-2xl text-cream mb-2">
-            Banking Details
-          </h1>
-          <p className="text-muted text-sm mb-6">
-            Where should we send your earnings?
-          </p>
-
-          {/* Info Box */}
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-6 text-xs text-blue-300">
-            🔒 Your banking information is encrypted and secure
-          </div>
-
-          {/* Form */}
-          <div className="space-y-4 mb-6">
-            {/* Bank Name */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">
-                Bank Name
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Access Bank, GTBank"
-                value={formData.bankName}
-                onChange={(e) => handleFieldChange('bankName', e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream placeholder-muted/50"
-              />
-            </div>
-
-            {/* Account Number */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">
-                Account Number
-              </label>
-              <input
-                type="text"
-                placeholder="10 digits"
-                value={formData.accountNumber}
-                onChange={(e) =>
-                  handleFieldChange('accountNumber', e.target.value)
-                }
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream placeholder-muted/50"
-              />
-            </div>
-
-            {/* Account Holder */}
-            <div>
-              <label className="text-xs text-muted block mb-1.5">
-                Account Holder Name
-              </label>
-              <input
-                type="text"
-                value={formData.accountHolderName}
-                onChange={(e) =>
-                  handleFieldChange('accountHolderName', e.target.value)
-                }
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-cream placeholder-muted/50"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p className="text-danger text-sm bg-danger/10 p-3 rounded mb-4">
-              {error}
-            </p>
-          )}
-
-          {/* Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep(2)}
-              className="flex-1 bg-white/5 hover:bg-white/10 text-cream py-3 rounded-lg transition"
-            >
-              Back
-            </button>
-            <button
-              onClick={() => {
-                if (!formData.bankName || !formData.accountNumber) {
-                  setError('All fields are required');
-                  return;
-                }
-                setStep(4);
-              }}
-              className="flex-1 bg-brand hover:bg-brand/90 text-navy font-semibold py-3 rounded-lg transition"
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── STEP 4: CONFIRMATION ───────────────────────────────────────────
-  if (step === 4) {
-    return (
-      <div className="min-h-dvh bg-navy flex items-center justify-center p-4 pb-24">
-        <div className="max-w-md w-full text-center">
-          {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Step 4 of 4</span>
-              <span className="text-xs text-brand font-semibold">100%</span>
-            </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-full bg-brand transition-all" />
-            </div>
-          </div>
-
-          {becomeHostMutation.isPending ? (
-            <>
-              <div className="text-5xl mb-4">⏳</div>
-              <h1 className="font-display font-bold text-2xl text-cream mb-2">
-                Setting up your account...
-              </h1>
-              <p className="text-muted text-sm">Just one moment</p>
-            </>
-          ) : success ? (
-            <>
-              <div className="text-5xl mb-4">🎉</div>
-              <h1 className="font-display font-bold text-2xl text-cream mb-2">
-                Welcome to Unilo Hosts!
-              </h1>
-              <p className="text-muted text-sm mb-6">
-                {success}
-              </p>
-              <button
-                onClick={() => navigate('/')}
-                className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-3 rounded-lg transition"
-              >
-                Go to Dashboard
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="text-5xl mb-4">✓</div>
-              <h1 className="font-display font-bold text-2xl text-cream mb-2">
-                Ready to start hosting?
-              </h1>
-              <p className="text-muted text-sm mb-6">
-                Your account is all set up. Start by listing your first property.
-              </p>
-
-              <button
-                onClick={() => becomeHostMutation.mutate()}
-                disabled={becomeHostMutation.isPending}
-                className="w-full bg-brand hover:bg-brand/90 text-navy font-semibold py-3 rounded-lg transition disabled:opacity-50"
-              >
-                {becomeHostMutation.isPending ? 'Completing...' : 'Complete Setup'}
-              </button>
-
-              {error && (
-                <p className="text-danger text-sm bg-danger/10 p-3 rounded mt-4">
-                  {error}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
 }
