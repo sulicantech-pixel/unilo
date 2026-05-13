@@ -202,9 +202,9 @@ export default function ListingDetailPage() {
   const rules     = listing.rules ?? [];
   const reviews   = listing.reviews ?? [];
 
-  const landlordName    = listing.landlord?.name    ?? listing.landlordName;
+  const landlordName    = `${listing.landlord?.first_name || ''} ${listing.landlord?.last_name || ''}`.trim() || listing.landlordName;
   const landlordBiz     = listing.landlord?.business_name;
-  const landlordPhone   = listing.landlordPhone;
+  const landlordPhone   = listing.landlord?.phone;
   const landlordWhatsapp = listing.whatsapp_number ?? listing.landlordWhatsapp;
 
   const distLabel = formatDistance(listing.distance_from_school ?? listing.distanceFromSchool);
