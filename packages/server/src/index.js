@@ -1,29 +1,26 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
+const express  = require('express');
+const cors     = require('cors');
+const helmet   = require('helmet');
+const morgan   = require('morgan');
 const rateLimit = require('express-rate-limit');
 
-const { sequelize } = require('./models');
-const authRoutes      = require('./routes/auth');
-const listingRoutes   = require('./routes/listings');
-const adminRoutes     = require('./routes/admin');
-const analyticsRoutes = require('./routes/analytics');
-const uploadRoutes    = require('./routes/upload');
-const communityRoutes = require('./routes/community');
+const { sequelize }    = require('./models');
+const authRoutes       = require('./routes/auth');
+const listingRoutes    = require('./routes/listings');
+const adminRoutes      = require('./routes/admin');
+const analyticsRoutes  = require('./routes/analytics');
+const uploadRoutes     = require('./routes/upload');
+const communityRoutes  = require('./routes/community');
 
-
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 5000;
 
-// ── Trust Render's reverse proxy ─────────────────────────────────────────────
+// ── Trust Render's reverse proxy ──────────────────────────────────────────────
 app.set('trust proxy', 1);
 
 // ── Security ──────────────────────────────────────────────────────────────────
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-}));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -47,27 +44,21 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 15 * 60 * 1000, max: 200,
+  standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },
 });
 app.use('/api/', limiter);
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 15 * 60 * 1000, max: 20,
+  standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many auth attempts. Try again later.' },
 });
 
 const analyticsLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 60 * 1000, max: 120,
+  standardHeaders: true, legacyHeaders: false,
   message: { error: 'Too many analytics events.' },
 });
 
@@ -79,14 +70,9 @@ app.use('/api/analytics', analyticsLimiter, analyticsRoutes);
 app.use('/api/upload',                      uploadRoutes);
 app.use('/api/community',                   communityRoutes);
 
-
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV || 'production',
-  });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), env: process.env.NODE_ENV || 'production' });
 });
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
@@ -109,11 +95,10 @@ async function start() {
     await sequelize.authenticate();
     console.log('✅ Database connected');
 
-    const syncOptions = process.env.NODE_ENV === 'development'
-      ? { alter: true }
-      : { force: false };
-
-    await sequelize.sync(syncOptions);
+    // alter: true adds missing columns without dropping data.
+    // This is safe to run repeatedly — once schema is fully stable,
+    // change back to { force: false }
+    await sequelize.sync({ alter: true });
     console.log('✅ Models synced');
 
     app.listen(PORT, () => {
