@@ -702,7 +702,7 @@ export default function HomePage() {
                 <div className="h-6 w-40 rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                 <div className="flex gap-3 overflow-hidden">
                   {[...Array(3)].map((_, j) => (
-                    <div key={j} className="w-52 h-64 rounded-2xl shrink-0 animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                    <div key={j} style={{ width: 260, height: 310, borderRadius: 16, flexShrink: 0, background: "rgba(255,255,255,0.06)", animation: "skeleton-pulse 1.4s ease-in-out infinite" }} style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                   ))}
                 </div>
               </div>
@@ -728,9 +728,9 @@ export default function HomePage() {
                 </div>
                 <div className={GRID.horizontal}>
                   {section.listings?.slice(0, 8).map((listing, i) => (
-                    <motion.div key={listing.id} className="w-52 shrink-0"
+                    <motion.div key={listing.id} style={{ flexShrink: 0 }}
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <ListingCard listing={listing} />
+                      <ListingCard listing={listing} horizontal={true} />
                     </motion.div>
                   ))}
                 </div>
