@@ -222,7 +222,7 @@ function SwitchHostingModal({ user, onClose }) {
         </div>
 
         {step < 3 && (
-          <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', gap: 12, flexShrink: 0 }}>
+          <div style={{ padding: '14px 20px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', borderTop: `1px solid ${BORDER}`, display: 'flex', gap: 12, flexShrink: 0 }}>
             {step === 2 && (
               <button onClick={() => setStep(1)} style={{ background: GLASS, border: `1px solid ${BORDER}`, color: CREAM, borderRadius: 12, padding: '13px 18px', fontSize: 14, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>← Back</button>
             )}
@@ -357,7 +357,7 @@ function EditModal({ user, onClose }) {
           {isHost && <div><label style={lbl}>Business / Property Name</label><input style={inp} value={form.business_name} onChange={set('business_name')} /></div>}
           {error && <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{error}</p>}
         </div>
-        <div style={{ padding: '14px 20px', borderTop: `1px solid ${BORDER}`, display: 'flex', gap: 12, flexShrink: 0 }}>
+        <div style={{ padding: '14px 20px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', borderTop: `1px solid ${BORDER}`, display: 'flex', gap: 12, flexShrink: 0 }}>
           <button onClick={save} disabled={loading}
             style={{ flex: 1, background: loading ? `${BRAND}60` : BRAND, color: '#fff', border: 'none', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
             {loading ? 'Saving…' : 'Save changes'}
@@ -444,7 +444,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div style={{ minHeight: '100dvh', background: NAVY, fontFamily: 'DM Sans, sans-serif', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: NAVY, fontFamily: 'DM Sans, sans-serif', paddingBottom: 'calc(90px + env(safe-area-inset-bottom))' }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${BORDER}`, paddingTop: 'max(20px, env(safe-area-inset-top))' }}>
@@ -685,7 +685,7 @@ export default function ProfilePage() {
       {/* ── FAB ────────────────────────────────────────────────────────────── */}
       <motion.button
         onClick={() => window.dispatchEvent(new CustomEvent('openQuickList'))}
-        style={{ position: 'fixed', bottom: 88, right: 20, zIndex: 40, width: 52, height: 52, borderRadius: '50%', background: BRAND, border: '2px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(255,107,0,0.45)' }}
+        style={{ position: 'fixed', bottom: 'calc(76px + env(safe-area-inset-bottom))', right: 20, zIndex: 40, width: 52, height: 52, borderRadius: '50%', background: BRAND, border: '2px solid rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(255,107,0,0.45)' }}
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
         whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
