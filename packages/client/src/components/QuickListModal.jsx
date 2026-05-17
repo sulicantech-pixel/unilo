@@ -288,7 +288,7 @@ export default function QuickListModal({ isOpen, initialMode = 'room', onClose }
               background: '#111',
               border: `1px solid ${isRoommate ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.09)'}`,
               borderRadius: '24px 24px 0 0',
-              maxHeight: '94vh',
+              maxHeight: 'calc(94dvh - env(safe-area-inset-bottom))',
               overflow: 'hidden', display: 'flex', flexDirection: 'column',
               fontFamily: 'DM Sans, sans-serif',
             }}
@@ -521,7 +521,7 @@ export default function QuickListModal({ isOpen, initialMode = 'room', onClose }
 
             {/* ── Footer ─────────────────────────────────────────────────── */}
             {!isSuccess && (
-              <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 12, flexShrink: 0 }}>
+              <div style={{ padding: '14px 20px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 12, flexShrink: 0 }}>
                 {step > 1 && (
                   <button onClick={handleBack}
                     style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: COLORS.cream, borderRadius: 12, padding: '13px 20px', fontSize: 14, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', flexShrink: 0 }}>
