@@ -57,7 +57,7 @@ export default function BottomNav({ onOpenQuickList, inCommunity }) {
 
   return (
     <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, minHeight: 60,
       backgroundColor: 'rgba(10,10,10,0.97)',
       backdropFilter: 'blur(20px)',
       borderTop: '1px solid rgba(255,255,255,0.08)',
