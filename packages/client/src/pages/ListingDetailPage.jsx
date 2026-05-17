@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../lib/api';
@@ -131,6 +131,8 @@ export default function ListingDetailPage() {
   const [wishlisted, setWishlisted] = useState(false);
   const [contactRevealed, setContactRevealed] = useState(false);
   const [dragStart,  setDragStart]  = useState(null);
+  const scrollTouchStartX = useRef(null);
+  const scrollTouchStartY = useRef(null);
 
   useEffect(() => {
     setLoading(true);
@@ -180,7 +182,12 @@ export default function ListingDetailPage() {
 
   if (error || !listing) return (
     <div style={{ minHeight: '100vh', background: '#0a0a0a', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
-      <div style={{ fontSize: 48 }}>🏚</div>
+      <div style={{ width: 72, height: 72, borderRadius: 20, background: 'rgba(255,107,0,0.08)', border: '1px solid rgba(255,107,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,107,0,0.6)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
       <p style={{ color: '#f5f0e8', fontFamily: 'Fraunces, serif', fontSize: 18, fontWeight: 600, margin: 0 }}>Listing not found</p>
       <p style={{ color: 'rgba(255,255,255,0.38)', fontSize: 13, textAlign: 'center', margin: 0 }}>This room may have been removed or is no longer available.</p>
       <button onClick={() => navigate('/')} style={{
@@ -226,7 +233,26 @@ export default function ListingDetailPage() {
         @keyframes dotpulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: 'DM Sans, sans-serif', color: '#fff', paddingBottom: 110 }}>
+      <div
+        style={{ minHeight: '100vh', background: '#0a0a0a', fontFamily: 'DM Sans, sans-serif', color: '#fff', paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}
+        onTouchStart={e => {
+          scrollTouchStartX.current = e.touches[0].clientX;
+          scrollTouchStartY.current = e.touches[0].clientY;
+        }}
+        onTouchEnd={e => {
+          if (scrollTouchStartX.current === null) return;
+          const dx = scrollTouchStartX.current - e.changedTouches[0].clientX;
+          const dy = Math.abs(scrollTouchStartY.current - e.changedTouches[0].clientY);
+          // Only trigger if horizontal swipe is dominant (not a scroll)
+          if (Math.abs(dx) > 50 && Math.abs(dx) > dy * 1.5 && photos.length > 1) {
+            dx > 0
+              ? setPhotoIdx(i => (i + 1) % photos.length)
+              : setPhotoIdx(i => (i - 1 + photos.length) % photos.length);
+          }
+          scrollTouchStartX.current = null;
+          scrollTouchStartY.current = null;
+        }}
+      >
 
         {/* ── Floating top bar ── */}
         <div style={{
@@ -498,7 +524,7 @@ export default function ListingDetailPage() {
 
       {/* ── Sticky CTA ── */}
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
+        position: 'fixed', bottom: 0, left: 0, right: 0, paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 40,
         background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(16px)',
         borderTop: '1px solid rgba(255,255,255,0.07)',
         padding: '12px 16px', paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
