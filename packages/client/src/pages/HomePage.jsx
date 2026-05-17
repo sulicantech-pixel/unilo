@@ -304,7 +304,8 @@ function FABChooser({ onClose, onChoose }) {
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 480, background: '#111',
-          borderRadius: '24px 24px 0 0', padding: '20px 20px 36px',
+          borderRadius: '24px 24px 0 0', padding: '20px 20px',
+          paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
           border: '1px solid rgba(255,255,255,0.09)',
         }}
       >
@@ -473,7 +474,7 @@ export default function HomePage() {
   const activePick = activePicker ? { ...PICKERS_META[activePicker], ...PICKERS[activePicker] } : null;
 
   return (
-    <main className="min-h-dvh pb-32" style={{ backgroundColor: COLORS.navy }}>
+    <main className="min-h-dvh pb-nav" style={{ backgroundColor: COLORS.navy }}>
 
       {/* ── TOP BAR ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-5 pb-2 gap-3" style={{ backgroundColor: COLORS.navy }}>
@@ -702,7 +703,7 @@ export default function HomePage() {
                 <div className="h-6 w-40 rounded-xl animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                 <div className="flex gap-3 overflow-hidden">
                   {[...Array(3)].map((_, j) => (
-                    <div key={j} style={{ width: 260, height: 310, borderRadius: 16, flexShrink: 0, background: "rgba(255,255,255,0.06)", animation: "skeleton-pulse 1.4s ease-in-out infinite" }} style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                    <div key={j} className="w-52 h-64 rounded-2xl shrink-0 animate-pulse" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
                   ))}
                 </div>
               </div>
@@ -728,9 +729,9 @@ export default function HomePage() {
                 </div>
                 <div className={GRID.horizontal}>
                   {section.listings?.slice(0, 8).map((listing, i) => (
-                    <motion.div key={listing.id} style={{ flexShrink: 0 }}
+                    <motion.div key={listing.id} className="w-52 shrink-0"
                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                      <ListingCard listing={listing} horizontal={true} />
+                      <ListingCard listing={listing} />
                     </motion.div>
                   ))}
                 </div>
@@ -762,7 +763,7 @@ export default function HomePage() {
       <motion.button
         onClick={() => setShowFABChooser(true)}
         style={{
-          position: 'fixed', bottom: 88, right: 20, zIndex: 40,
+          position: 'fixed', bottom: 'calc(76px + env(safe-area-inset-bottom))', right: 20, zIndex: 40,
           width: 52, height: 52, borderRadius: '50%',
           background: COLORS.brand,
           border: '2px solid rgba(255,255,255,0.15)',
