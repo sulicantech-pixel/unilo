@@ -159,4 +159,14 @@
 .dot-pulse { animation: dot-pulse 1.8s ease-in-out infinite; }
 
 /* ─── Bottom nav height utility ─────────────────────────── */
-.pb-nav { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+.pb-nav { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+/* Sheet/modal footer — always clears the home indicator */
+.sheet-footer-safe {
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* FAB sits above nav with safe clearance */
+.fab-position {
+  bottom: calc(76px + env(safe-area-inset-bottom));
+}
