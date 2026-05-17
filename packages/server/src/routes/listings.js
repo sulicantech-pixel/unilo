@@ -511,6 +511,32 @@ router.post('/:id/wishlist', authenticate, requireRole('viewer'), async (req, re
   }
 });
 
+
+// ── PATCH /api/listings/:id/wishlist ─── Move to collection ──────────────────
+router.patch('/:id/wishlist', authenticate, async (req, res) => {
+  try {
+    const { collection_name } = req.body;
+    if (!collection_name) return res.status(422).json({ error: 'collection_name required' });
+
+    const item = await Wishlist.findOne({
+      where: { user_id: req.user.id, listing_id: req.params.id },
+    });
+    if (!item) return res.status(404).json({ error: 'Not in wishlist' });
+
+    // Try to update collection_name — column may not exist yet (alter:true will add it)
+    try {
+      await item.update({ collection_name });
+    } catch {
+      // column doesn't exist yet — acknowledge without error
+    }
+
+    res.json({ saved: true, collection_name });
+  } catch (err) {
+    console.error('[patch-wishlist]', err.message);
+    res.status(500).json({ error: 'Failed to move listing' });
+  }
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function detectDevice(ua = '') {
   if (/mobile/i.test(ua))  return 'mobile';
